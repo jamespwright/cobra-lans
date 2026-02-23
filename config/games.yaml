@@ -7,7 +7,57 @@ games:
   prerequisites: []
   files:
   - path: game/Age of Empires II.msi
-    sha256: d54146981f71af89789386d01e53f8e43fb1dfa438d96d49dd1d9b7219a845eb
+- name: Battlefield 1942
+  base_path: Installers/Battlefield 1942
+  version: '1.0'
+  install_msi: game/Battlefield 1942.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: game/Battlefield 1942.msi
+  - path: game/Data1.cab
+  - path: game/Data11.cab
+  - path: game/Data12.cab
+- name: Battlefield 3
+  base_path: Installers/Battlefield 3
+  version: 1.00.0000
+  install_msi: game/Battlefield 3.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: game/Battlefield 3.msi
+  - path: game/Data1.cab
+  - path: game/Data11.cab
+  - path: game/Data110.cab
+  - path: game/Data111.cab
+  - path: game/Data112.cab
+  - path: game/Data113.cab
+  - path: game/Data114.cab
+  - path: game/Data115.cab
+  - path: game/Data116.cab
+  - path: game/Data117.cab
+  - path: game/Data118.cab
+  - path: game/Data119.cab
+  - path: game/Data12.cab
+  - path: game/Data120.cab
+  - path: game/Data121.cab
+  - path: game/Data122.cab
+  - path: game/Data123.cab
+  - path: game/Data124.cab
+  - path: game/Data125.cab
+  - path: game/Data126.cab
+  - path: game/Data127.cab
+  - path: game/Data128.cab
+  - path: game/Data129.cab
+  - path: game/Data13.cab
+  - path: game/Data130.cab
+  - path: game/Data131.cab
+  - path: game/Data14.cab
+  - path: game/Data15.cab
+  - path: game/Data16.cab
+  - path: game/Data17.cab
+  - path: game/Data18.cab
+  - path: game/Data19.cab
 - name: Battlefield Bad Company 2
   base_path: Installers/Battlefield Bad Company 2
   version: 1.00.0000
@@ -17,28 +67,98 @@ games:
   prerequisites: []
   files:
   - path: Game/Battlefield Bad Company 2.msi
-    sha256: 447cc2466cc7c7751d027b2bda4800516a430d4f09a97e0c8a4a2237bd2902a4
   - path: Game/Data1.cab
-    sha256: 7b03db35e1d5d98f3a5e38190122b039f81993d0eb1ec1f881c68af8dbe706ed
   - path: Game/Data11.cab
-    sha256: ebfcdd6a21bfa178fd5dcebdb07c74c7e0a435168d4ebb31b987a737a88552e6
   - path: Game/Data12.cab
-    sha256: 2b5ceff8c69bac52fe7d7edf5b3653cc0632d4c39eb15f5ef26d6a0413b2bced
   - path: Game/Data13.cab
-    sha256: 6093022ef813138063c537f6a425dcfbb0f98ccfe371c15966cf16f962b941ae
   - path: Game/Data14.cab
-    sha256: bc603f81a0c24e2f2f84fe3738bbf9c7dc14436c26f734d15149ceacdb129bcd
   - path: Game/Data15.cab
-    sha256: 2d576ae07bc956c718460ea4a29ce037c2e978e31fdfbb663f98a6c932af9f65
   - path: Game/Data16.cab
-    sha256: b0aec2bbf9f125d63adc1c4c94f6888c731b614a3d34992307077baef166504e
   - path: Game/Data17.cab
-    sha256: 2ab0c93b276c5ed8427aaa5e0ea156eb668dab3221c287e5b384a6f64dd6f690
   - path: Game/Data18.cab
-    sha256: 1691bc06e900fbae688a57c4c9bfcc4afdc2381442b90fee38f95af9e951703c
   server_files:
   - path: Server/Battlefield Bad Company 2 Server.msi
-    sha256: 34eae07486d9801dfbbe3c910cce3efe178457946d2cebd2a3f02654616f0873
+- name: Battlefield Multi Server
+  base_path: Installers/Battlefield Multi Server
+  version: 1.00.0000
+  install_msi: server/Battlefield Multi Server.msi
+  server_msi: server/Battlefield Multi Server.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: server/Battlefield Multi Server.msi
+  - path: server/Data1.cab
+  - path: server/Data11.cab
+  - path: server/Data12.cab
+  - path: server/Data13.cab
+  - path: server/Data14.cab
+  - path: server/Data15.cab
+  server_files:
+  - path: server/Battlefield Multi Server.msi
+  - path: server/Data1.cab
+  - path: server/Data11.cab
+  - path: server/Data12.cab
+  - path: server/Data13.cab
+  - path: server/Data14.cab
+  - path: server/Data15.cab
+- name: Call Of Duty
+  base_path: Installers/Call Of Duty
+  version: 1.00.0000
+  install_msi: Game/Call Of Duty.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: Game/Call Of Duty.msi
+  - path: Game/Data1.cab
+  - path: Game/Data11.cab
+  - path: Game/Data12.cab
+- name: Call Of Duty 4
+  base_path: Installers/Call Of Duty 4
+  version: 1.00.0000
+  install_msi: Game/Call Of Duty 4.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: Game/Call Of Duty 4.msi
+  - path: Game/Data1.cab
+  - path: Game/Data11.cab
+  - path: Game/Data12.cab
+  - path: Game/Data13.cab
+  - path: Game/Data14.cab
+  - path: Game/Data15.cab
+- name: Chivalry Medieval Warfare
+  base_path: Installers/Chivalry Medieval Warfare
+  version: 1.00.0000
+  install_msi: Game/Chivalry Medieval Warfare.msi
+  server_msi: Server/Chivalry Medieval Warfare Server.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: Game/Chivalry Medieval Warfare.msi
+  - path: Game/Data1.cab
+  - path: Game/Data11.cab
+  - path: Game/Data12.cab
+  - path: Game/Data13.cab
+  - path: Game/Data14.cab
+  - path: Game/Data15.cab
+  - path: Game/Data16.cab
+  - path: Game/Data17.cab
+  server_files:
+  - path: Server/Chivalry Medieval Warfare Server.msi
+  - path: Server/Data1.cab
+- name: Counter-Strike Global Offensive
+  base_path: Installers/Counter-Strike Global Offensive
+  version: 1.00.0000
+  install_msi: Game/Counter-Strike Global Offensive.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: Game/Counter-Strike Global Offensive.msi
+  - path: Game/Data1.cab
+  - path: Game/Data11.cab
+  - path: Game/Data12.cab
+  - path: Game/Data13.cab
+  - path: Game/Data14.cab
 - name: Duck Game
   base_path: Installers/Duck Game
   version: 1.00.0000
@@ -47,6 +167,219 @@ games:
   prerequisites: []
   files:
   - path: game/Data1.cab
-    sha256: 113010ade066f8a630c4e94a802bd11f5953b4b232f062753d3c6e8f8e1671e0
   - path: game/Duck Game.msi
-    sha256: 90b6e6358e9a7d0b4ab50e15b9bdf26f76acd5cb42eae74c8710a1af1a1e7fca
+- name: Flatout 2
+  base_path: Installers/Flatout 2
+  version: 1.00.0000
+  install_msi: Game/Flatout 2.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: Game/Data1.cab
+  - path: Game/Data11.cab
+  - path: Game/Data12.cab
+  - path: Game/Flatout 2.msi
+- name: Garrys Mod
+  base_path: Installers/Garrys Mod
+  version: 1.00.0000
+  install_msi: Game/Garrys Mod.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: Game/Data1.cab
+  - path: Game/Data11.cab
+  - path: Game/Data12.cab
+  - path: Game/Data13.cab
+  - path: Game/Garrys Mod.msi
+- name: Grand Theft Auto IV
+  base_path: Installers/Grand Theft Auto IV
+  version: 1.00.0000
+  install_msi: game/Grand Theft Auto IV.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: game/Data1.cab
+  - path: game/Data11.cab
+  - path: game/Data110.cab
+  - path: game/Data111.cab
+  - path: game/Data112.cab
+  - path: game/Data113.cab
+  - path: game/Data114.cab
+  - path: game/Data12.cab
+  - path: game/Data13.cab
+  - path: game/Data14.cab
+  - path: game/Data15.cab
+  - path: game/Data16.cab
+  - path: game/Data17.cab
+  - path: game/Data18.cab
+  - path: game/Data19.cab
+  - path: game/Grand Theft Auto IV.msi
+- name: Killing Floor
+  base_path: Installers/Killing Floor
+  version: 1.00.0000
+  install_msi: Game/Killing Floor.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: Game/Data1.cab
+  - path: Game/Data11.cab
+  - path: Game/Data12.cab
+  - path: Game/Killing Floor.msi
+- name: Left 4 Dead 2
+  base_path: Installers/Left 4 Dead 2
+  version: 1.00.0000
+  install_msi: Game/Left 4 Dead 2.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: Game/Data1.cab
+  - path: Game/Data11.cab
+  - path: Game/Data12.cab
+  - path: Game/Data13.cab
+  - path: Game/Data14.cab
+  - path: Game/Data15.cab
+  - path: Game/Data16.cab
+  - path: Game/Data17.cab
+  - path: Game/Data18.cab
+  - path: Game/Data19.cab
+  - path: Game/Left 4 Dead 2.msi
+- name: Need for Speed SHIFT
+  base_path: Installers/Need for Speed SHIFT
+  version: 1.00.0000
+  install_msi: Game/Need for Speed SHIFT.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: Game/Data1.cab
+  - path: Game/Data11.cab
+  - path: Game/Data12.cab
+  - path: Game/Data13.cab
+  - path: Game/Data14.cab
+  - path: Game/Data15.cab
+  - path: Game/Need for Speed SHIFT.msi
+- name: Red Alert 3
+  base_path: Installers/Red Alert 3
+  version: 1.00.0000
+  install_msi: Game/Red Alert 3.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: Game/Data1.cab
+  - path: Game/Data11.cab
+  - path: Game/Data12.cab
+  - path: Game/Data13.cab
+  - path: Game/Data14.cab
+  - path: Game/Data15.cab
+  - path: Game/Data16.cab
+  - path: Game/Red Alert 3.msi
+- name: StarCraft II
+  base_path: Installers/StarCraft II
+  version: 1.00.0000
+  install_msi: game/StarCraft II.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: game/StarCraft II.msi
+- name: Team Fortress 2
+  base_path: Installers/Team Fortress 2
+  version: 1.00.0000
+  install_msi: Game/Team Fortress 2.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: Game/Data1.cab
+  - path: Game/Data11.cab
+  - path: Game/Data12.cab
+  - path: Game/Data13.cab
+  - path: Game/Data14.cab
+  - path: Game/Data15.cab
+  - path: Game/Data16.cab
+  - path: Game/Data17.cab
+  - path: Game/Team Fortress 2.msi
+- name: Tom Clancys Rainbow Six Siege
+  base_path: Installers/Tom Clancys Rainbow Six Siege
+  version: '1.0'
+  install_msi: game/Tom Clancys Rainbow Six Siege.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: game/Data1.cab
+  - path: game/Data11.cab
+  - path: game/Data110.cab
+  - path: game/Data111.cab
+  - path: game/Data112.cab
+  - path: game/Data113.cab
+  - path: game/Data12.cab
+  - path: game/Data13.cab
+  - path: game/Data14.cab
+  - path: game/Data15.cab
+  - path: game/Data16.cab
+  - path: game/Data17.cab
+  - path: game/Data18.cab
+  - path: game/Data19.cab
+  - path: game/Tom Clancys Rainbow Six Siege.msi
+- name: Unreal Tournament 3
+  base_path: Installers/Unreal Tournament 3
+  version: 1.00.0000
+  install_msi: Game/Unreal Tournament 3.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: Game/Data1.cab
+  - path: Game/Data11.cab
+  - path: Game/Data12.cab
+  - path: Game/Data13.cab
+  - path: Game/Data14.cab
+  - path: Game/Data15.cab
+  - path: Game/Data16.cab
+  - path: Game/Data17.cab
+  - path: Game/Data18.cab
+  - path: Game/Unreal Tournament 3.msi
+- name: Warcraft III
+  base_path: Installers/Warcraft III
+  version: 1.00.0000
+  install_msi: Game/Warcraft III.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: Game/Data1.cab
+  - path: Game/Data11.cab
+  - path: Game/Warcraft III.msi
+- name: Wreckfest
+  base_path: Installers/Wreckfest
+  version: 1.00.0000
+  install_msi: game/Wreckfest.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: game/Data1.cab
+  - path: game/Data11.cab
+  - path: game/Data110.cab
+  - path: game/Data111.cab
+  - path: game/Data112.cab
+  - path: game/Data113.cab
+  - path: game/Data114.cab
+  - path: game/Data115.cab
+  - path: game/Data116.cab
+  - path: game/Data117.cab
+  - path: game/Data118.cab
+  - path: game/Data119.cab
+  - path: game/Data12.cab
+  - path: game/Data120.cab
+  - path: game/Data121.cab
+  - path: game/Data122.cab
+  - path: game/Data123.cab
+  - path: game/Data124.cab
+  - path: game/Data125.cab
+  - path: game/Data126.cab
+  - path: game/Data127.cab
+  - path: game/Data128.cab
+  - path: game/Data129.cab
+  - path: game/Data13.cab
+  - path: game/Data14.cab
+  - path: game/Data15.cab
+  - path: game/Data16.cab
+  - path: game/Data17.cab
+  - path: game/Data18.cab
+  - path: game/Data19.cab
+  - path: game/Wreckfest.msi

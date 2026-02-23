@@ -3,9 +3,8 @@
 Cobra LANs – Manifest updater
 ==============================
 Scans the ``Installers/`` tree for MSI and CAB files, reads MSI metadata
-(ProductName, ProductVersion) via the Windows Installer COM object, computes
-SHA-256 hashes for every file found, then **fully regenerates**
-``config/games.yaml``.
+(ProductName, ProductVersion) via the Windows Installer COM object, then
+**fully regenerates** ``config/games.yaml``.
 
 Manual fields already present in the YAML
 (supports_player_name, requires_server_ip, server_msi, prerequisites)
@@ -16,11 +15,9 @@ Usage
     python scripts/update_manifest.py
 """
 
-import hashlib
 import json
 import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import yaml
@@ -37,17 +34,6 @@ MANUAL_KEYS = (
     "requires_server_ip",
     "prerequisites",
 )
-
-
-# ── SHA-256 hash ───────────────────────────────────────────────────────────────
-
-def sha256_file(path: Path) -> str:
-    """Return the lowercase hex SHA-256 digest of *path*."""
-    h = hashlib.sha256()
-    with open(path, "rb") as fh:
-        for chunk in iter(lambda: fh.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 # ── MSI metadata reader ────────────────────────────────────────────────────────
@@ -113,7 +99,7 @@ def _find_subdir(parent: Path, name: str) -> Path | None:
 
 def _scan_subdir(subdir: Path, base_abs: Path) -> tuple[list[dict], Path | None]:
     """
-    Collect all MSI/CAB files inside *subdir*, hash them, and return
+    Collect all MSI/CAB files inside *subdir* and return
     ``(file_entries, primary_msi)`` where paths in *file_entries* are relative
     to *base_abs* (the game's top-level installer directory).
     """
@@ -124,15 +110,12 @@ def _scan_subdir(subdir: Path, base_abs: Path) -> tuple[list[dict], Path | None]
     if not inst_files:
         return [], None
 
-    print(f"  Hashing {len(inst_files)} file(s) in parallel …")
-    with ThreadPoolExecutor() as executor:
-        digests = list(executor.map(sha256_file, inst_files))
-
+    print(f"  Found {len(inst_files)} file(s).")
     file_entries: list[dict] = []
     primary_msi: Path | None = None
-    for f, digest in zip(inst_files, digests):
+    for f in inst_files:
         rel = f.relative_to(base_abs).as_posix()  # e.g. "Game/Data1.cab"
-        file_entries.append({"path": rel, "sha256": digest})
+        file_entries.append({"path": rel})
         if primary_msi is None and f.suffix.lower() == ".msi":
             primary_msi = f
     return file_entries, primary_msi

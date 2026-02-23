@@ -1,8 +1,8 @@
 """Cobra LANs – data loading and file-system utilities."""
 
-import hashlib
+import json
+import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from tkinter import messagebox
 
@@ -14,8 +14,7 @@ from .config import BASE_DIR, YAML_PATH
 # Status constants returned by verify_game_files
 STATUS_OK        = "ok"
 STATUS_MISSING   = "missing"
-STATUS_MISMATCH  = "mismatch"
-STATUS_NO_FILES  = "no_files"
+STATUS_MISMATCH  = "mismatch"   # MSI ProductVersion differs from YAML version
 
 
 def load_games() -> list[dict]:
@@ -34,13 +33,32 @@ def load_games() -> list[dict]:
     return data.get("games", [])
 
 
-def _sha256_file(path: Path) -> str:
-    """Return the lowercase hex SHA-256 digest of *path*."""
-    h = hashlib.sha256()
-    with open(path, "rb") as fh:
-        for chunk in iter(lambda: fh.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+def _read_msi_version(msi_path: Path) -> str:
+    """
+    Return the ProductVersion string from *msi_path* by querying the Windows
+    Installer COM object via PowerShell.  Returns an empty string on failure.
+    """
+    ps = (
+        "$ErrorActionPreference='Stop';"
+        "$i=New-Object -ComObject WindowsInstaller.Installer;"
+        f"$d=$i.OpenDatabase([string]'{msi_path}',0);"
+        "$q=$d.OpenView(\"SELECT Value FROM Property WHERE Property='ProductVersion'\");"
+        "$q.Execute();"
+        "$rec=$q.Fetch();"
+        "if($rec){Write-Output $rec.StringData(1)}"
+    )
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
 
 
 def _base_path(game: dict) -> Path:
@@ -69,38 +87,42 @@ def get_installer_folder(game: dict, mode: str = "game") -> Path:
 
 def verify_game_files(game: dict, mode: str = "game") -> dict[str, str]:
     """
-    Compare every file listed in ``game['files']`` (game mode) or
-    ``game['server_files']`` (server mode) against its expected SHA-256.
+    Check every file listed in ``game['files']`` (game mode) or
+    ``game['server_files']`` (server mode) for existence on disk.
+    For the primary MSI, also verify that its ProductVersion matches
+    the ``version`` recorded in the YAML.
 
     Paths in the file entries are relative to the game's ``base_path``.
 
     Returns a dict mapping each relative path to one of:
-        ``STATUS_OK``       – file exists and hash matches
+        ``STATUS_OK``       – file exists (and MSI version matches, if applicable)
         ``STATUS_MISSING``  – file does not exist on disk
-        ``STATUS_MISMATCH`` – file exists but hash differs
+        ``STATUS_MISMATCH`` – MSI exists but its ProductVersion differs from game['version']
 
     Returns an empty dict when the game has no file entries for the mode.
     """
-    file_key = "server_files" if mode == "server" else "files"
-    base     = _base_path(game)
+    file_key         = "server_files" if mode == "server" else "files"
+    msi_key          = "server_msi"   if mode == "server" else "install_msi"
+    base             = _base_path(game)
+    msi_rel          = game.get(msi_key, "")
+    expected_version = game.get("version", "").strip()
 
-    entries = [
-        (e["path"], e["sha256"])
-        for e in game.get(file_key, [])
-        if e.get("path") and e.get("sha256")
-    ]
+    entries = [e["path"] for e in game.get(file_key, []) if e.get("path")]
     if not entries:
         return {}
 
-    def _check(rel_expected: tuple[str, str]) -> tuple[str, str]:
-        rel, expected = rel_expected
+    results: dict[str, str] = {}
+    for rel in entries:
         full_path = base / rel
         if not full_path.exists():
-            return rel, STATUS_MISSING
-        return rel, STATUS_OK if _sha256_file(full_path) == expected else STATUS_MISMATCH
-
-    with ThreadPoolExecutor() as executor:
-        return dict(executor.map(_check, entries))
+            results[rel] = STATUS_MISSING
+        elif msi_rel and Path(rel).as_posix() == Path(msi_rel).as_posix() and expected_version:
+            # Primary MSI – validate ProductVersion against the YAML version field
+            actual_version = _read_msi_version(full_path)
+            results[rel] = STATUS_OK if actual_version == expected_version else STATUS_MISMATCH
+        else:
+            results[rel] = STATUS_OK
+    return results
 
 
 def game_integrity_summary(file_results: dict[str, str]) -> tuple[str, str]:
