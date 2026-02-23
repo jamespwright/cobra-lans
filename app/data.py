@@ -1,7 +1,6 @@
 """Cobra LANs – data loading and file-system utilities."""
 
 import json
-import subprocess
 import sys
 from pathlib import Path
 from tkinter import messagebox
@@ -35,27 +34,17 @@ def load_games() -> list[dict]:
 
 def _read_msi_version(msi_path: Path) -> str:
     """
-    Return the ProductVersion string from *msi_path* by querying the Windows
-    Installer COM object via PowerShell.  Returns an empty string on failure.
+    Return the ProductVersion string from *msi_path* using the standard-library
+    ``msilib`` module (Windows only).  Returns an empty string on failure.
     """
-    ps = (
-        "$ErrorActionPreference='Stop';"
-        "$i=New-Object -ComObject WindowsInstaller.Installer;"
-        f"$d=$i.OpenDatabase([string]'{msi_path}',0);"
-        "$q=$d.OpenView(\"SELECT Value FROM Property WHERE Property='ProductVersion'\");"
-        "$q.Execute();"
-        "$rec=$q.Fetch();"
-        "if($rec){Write-Output $rec.StringData(1)}"
-    )
     try:
-        result = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
+        import msilib  # noqa: PLC0415 – Windows-only stdlib module
+        db = msilib.OpenDatabase(str(msi_path), msilib.MSIDBOPEN_READONLY)
+        view = db.OpenView("SELECT Value FROM Property WHERE Property='ProductVersion'")
+        view.Execute(None)
+        record = view.Fetch()
+        if record:
+            return record.GetString(1)
     except Exception:  # noqa: BLE001
         pass
     return ""
