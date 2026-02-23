@@ -18,7 +18,12 @@ def run_installs(
 
     for game in games:
         try:
-            # 1. Prerequisites
+            # Resolve the game's base installer directory.
+            # New format:  base_path + relative msi_rel
+            # Legacy fallback: base_path absent, msi_rel is already root-relative
+            base_path = BASE_DIR / game["base_path"] if game.get("base_path") else BASE_DIR
+
+            # 1. Prerequisites (paths remain root-relative as they are manual)
             for prereq in game.get("prerequisites", []):
                 prereq_path = BASE_DIR / prereq["path"]
                 args = prereq.get("args", "")
@@ -33,7 +38,7 @@ def run_installs(
             if not msi_rel:
                 continue
 
-            msi_path   = BASE_DIR / msi_rel
+            msi_path   = base_path / msi_rel
             target_dir = os.path.normpath(os.path.join(install_dir, game["name"]))
 
             # 3. Build msiexec command

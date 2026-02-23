@@ -4,8 +4,14 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
 
-from .config import BASE_DIR, C, FONT, FONT_BOLD, FONT_HEAD
-from .data import folder_size_str, load_games
+from .config import C, FONT, FONT_BOLD, FONT_HEAD
+from .data import (
+    folder_size_str,
+    game_integrity_summary,
+    get_installer_folder,
+    load_games,
+    verify_game_files,
+)
 from .installer import run_installs
 from .widgets import CyberButton, neon_box, neon_line
 
@@ -16,17 +22,22 @@ class CobraLANs(tk.Tk):
         super().__init__()
         self.title("Cobra LANs")
         self.configure(bg=C["bg"])
-        self.geometry("1020x1080")
-        self.minsize(900, 580)
+        self.geometry("1200x1080")
+        self.minsize(1060, 580)
 
         self.games: list[dict]                   = load_games()
+        self._visible_games: list[dict]          = []
         self.check_vars: list[tk.BooleanVar]     = []
         self.install_type                        = tk.StringVar(value="game")
         self.player_name                         = tk.StringVar()
         self._check_all_var                      = tk.BooleanVar(value=False)
-        self._install_btn: CyberButton | None = None
+        self._install_btn: CyberButton | None    = None
+        self._row_container: tk.Frame | None     = None
 
         self._build_ui()
+
+        # Rebuild the game list whenever the install mode radio changes
+        self.install_type.trace_add("write", lambda *_: self._populate_game_rows())
 
     # ── UI construction ────────────────────────────────────────────────────────
 
@@ -82,8 +93,10 @@ class CobraLANs(tk.Tk):
         col_row = tk.Frame(container, bg=C["surface"], pady=4)
         col_row.pack(fill="x", padx=10)
         tk.Label(col_row, text="", bg=C["surface"], width=3).pack(side="left")
-        tk.Label(col_row, text="GAME TITLE", font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"]).pack(side="left", padx=(4, 0))
-        tk.Label(col_row, text="DISK SIZE",  font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"]).pack(side="right", padx=(0, 8))
+        tk.Label(col_row, text="GAME TITLE",  font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"]).pack(side="left", padx=(4, 0))
+        tk.Label(col_row, text="DISK SIZE",   font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"], width=10, anchor="e").pack(side="right", padx=(0, 8))
+        tk.Label(col_row, text="FILE STATUS", font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"], width=16, anchor="e").pack(side="right", padx=(0, 4))
+        tk.Label(col_row, text="VERSION",     font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"], width=9,  anchor="e").pack(side="right", padx=(0, 4))
 
         neon_line(container, C["border_hi"])
 
@@ -107,10 +120,30 @@ class CobraLANs(tk.Tk):
         canvas.bind_all("<MouseWheel>",
                         lambda e: canvas.yview_scroll(-(e.delta // 120), "units"))
 
-        for idx, game in enumerate(self.games):
-            self._add_game_row(idx, game)
+        self._populate_game_rows()
 
-    def _add_game_row(self, idx: int, game: dict):
+    def _populate_game_rows(self):
+        """Clear and rebuild the scrollable game rows for the current install mode."""
+        if self._row_container is None:
+            return
+        # Destroy existing rows and reset state
+        for child in self._row_container.winfo_children():
+            child.destroy()
+        self.check_vars.clear()
+        self._check_all_var.set(False)
+
+        mode = self.install_type.get()
+        # In server mode show only games that have server files/MSI
+        if mode == "server":
+            visible = [g for g in self.games if g.get("server_msi") or g.get("server_files")]
+        else:
+            visible = self.games
+
+        self._visible_games = visible
+        for idx, game in enumerate(visible):
+            self._add_game_row(idx, game, mode)
+
+    def _add_game_row(self, idx: int, game: dict, mode: str = "game"):
         row_bg = C["row_even"] if idx % 2 == 0 else C["row_odd"]
 
         frame = tk.Frame(self._row_container, bg=row_bg, pady=6, cursor="hand2")
@@ -142,13 +175,30 @@ class CobraLANs(tk.Tk):
 
         size_var = tk.StringVar(value="---")
         size_lbl = tk.Label(frame, textvariable=size_var, font=FONT,
-                             fg=C["accent_dim"], bg=row_bg, width=12, anchor="e")
+                             fg=C["accent_dim"], bg=row_bg, width=10, anchor="e")
         size_lbl.pack(side="right", padx=(0, 12))
 
+        status_lbl = tk.Label(frame, text="checking…", font=FONT,
+                               fg=C["text_dim"], bg=row_bg, width=16, anchor="e")
+        status_lbl.pack(side="right", padx=(0, 4))
+
+        version_lbl = tk.Label(frame, text=game.get("version", "—"), font=FONT,
+                                fg=C["text_dim"], bg=row_bg, width=9, anchor="e")
+        version_lbl.pack(side="right", padx=(0, 4))
+
         threading.Thread(
-            target=lambda v=size_var, p=BASE_DIR / game["name"]: v.set(folder_size_str(p)),
+            target=lambda v=size_var, g=game, m=mode: v.set(
+                folder_size_str(get_installer_folder(g, m))
+            ),
             daemon=True,
         ).start()
+
+        def _run_verify(lbl=status_lbl, g=game, m=mode):
+            results   = verify_game_files(g, m)
+            text, key = game_integrity_summary(results)
+            self.after(0, lambda t=text, k=key, lb=lbl: lb.configure(text=t, fg=C[k]))
+
+        threading.Thread(target=_run_verify, daemon=True).start()
 
         # ── Row interaction helpers ────────────────────────────────────────────
 
@@ -173,7 +223,7 @@ class CobraLANs(tk.Tk):
             _set_row_bg(r, bg)
             s.configure(bg=C["cyan"] if v.get() else C["border"])
 
-        for w in (frame, name_lbl, size_lbl):
+        for w in (frame, name_lbl, version_lbl, status_lbl, size_lbl):
             w.bind("<Button-1>", _toggle)
             w.bind("<Enter>",    _enter)
             w.bind("<Leave>",    _leave)
@@ -228,7 +278,7 @@ class CobraLANs(tk.Tk):
     # ── Install logic ──────────────────────────────────────────────────────────
 
     def _on_install(self):
-        selected = [self.games[i] for i, v in enumerate(self.check_vars) if v.get()]
+        selected = [self._visible_games[i] for i, v in enumerate(self.check_vars) if v.get()]
         if not selected:
             messagebox.showwarning("No Selection", "Select at least one game to install.")
             return

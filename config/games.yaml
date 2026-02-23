@@ -1,110 +1,52 @@
 games:
-  - name: "Age of Empires II"
-    install_msi: "Installers/Age of Empires II/game/Age of Empires II.msi"
-    supports_player_name: false
-    prerequisites: []
-
-  - name: "Battlefield 1942"
-    install_msi: "Installers/Battlefield 1942/game/Battlefield 1942.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Battlefield 3"
-    install_msi: "Installers/Battlefield 3/game/Battlefield 3.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Battlefield Bad Company 2"
-    install_msi: "Installers/Battlefield Bad Company 2/game/Battlefield Bad Company 2.msi"
-    supports_player_name: true
-    requires_server_ip: true
-    prerequisites: []
-
-  - name: "Call Of Duty"
-    install_msi: "Installers/Call Of Duty/game/Call Of Duty.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Call Of Duty 4"
-    install_msi: "Installers/Call Of Duty 4/game/Call Of Duty 4.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Chivalry Medieval Warfare"
-    install_msi: "Installers/Chivalry Medieval Warfare/game/Chivalry Medieval Warfare.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Counter-Strike Global Offensive"
-    install_msi: "Installers/Counter-Strike Global Offensive/game/Counter-Strike Global Offensive.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Duck Game"
-    install_msi: "Installers/Duck Game/game/Duck Game.msi"
-    supports_player_name: false
-    prerequisites: []
-
-  - name: "Flatout 2"
-    install_msi: "Installers/Flatout 2/game/Flatout 2.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Garrys Mod"
-    install_msi: "Installers/Garrys Mod/game/Garrys Mod.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Grand Theft Auto IV"
-    install_msi: "Installers/Grand Theft Auto IV/game/Grand Theft Auto IV.msi"
-    supports_player_name: true
-
-  - name: "Killing Floor"
-    install_msi: "Installers/Killing Floor/game/Killing Floor.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Left 4 Dead 2"
-    install_msi: "Installers/Left 4 Dead 2/game/Left 4 Dead 2.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Need for Speed SHIFT"
-    install_msi: "Installers/Need for Speed SHIFT/game/Need for Speed SHIFT.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Red Alert 3"
-    install_msi: "Installers/Red Alert 3/game/Red Alert 3.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "StarCraft II"
-    install_msi: "Installers/StarCraft II/game/StarCraft II.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Team Fortress 2"
-    install_msi: "Installers/Team Fortress 2/game/Team Fortress 2.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Tom Clancys Rainbow Six Siege"
-    install_msi: "Installers/Tom Clancys Rainbow Six Siege/game/Tom Clancys Rainbow Six Siege.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Unreal Tournament 3"
-    install_msi: "Installers/Unreal Tournament 3/game/Unreal Tournament 3.msi"
-    supports_player_name: true
-    prerequisites: []
-
-  - name: "Warcraft III"
-    install_msi: "Installers/Warcraft III/game/Warcraft III.msi"
-    supports_player_name: false
-    prerequisites: []
-
-  - name: "Wreckfest"
-    install_msi: "Installers/Wreckfest/game/Wreckfest.msi"
-    supports_player_name: true
-    prerequisites: []
+- name: Age of Empires II
+  base_path: Installers/Age of Empires II
+  version: '1.0'
+  install_msi: game/Age of Empires II.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: game/Age of Empires II.msi
+    sha256: d54146981f71af89789386d01e53f8e43fb1dfa438d96d49dd1d9b7219a845eb
+- name: Battlefield Bad Company 2
+  base_path: Installers/Battlefield Bad Company 2
+  version: 1.00.0000
+  install_msi: Game/Battlefield Bad Company 2.msi
+  server_msi: Server/Battlefield Bad Company 2 Server.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: Game/Battlefield Bad Company 2.msi
+    sha256: 447cc2466cc7c7751d027b2bda4800516a430d4f09a97e0c8a4a2237bd2902a4
+  - path: Game/Data1.cab
+    sha256: 7b03db35e1d5d98f3a5e38190122b039f81993d0eb1ec1f881c68af8dbe706ed
+  - path: Game/Data11.cab
+    sha256: ebfcdd6a21bfa178fd5dcebdb07c74c7e0a435168d4ebb31b987a737a88552e6
+  - path: Game/Data12.cab
+    sha256: 2b5ceff8c69bac52fe7d7edf5b3653cc0632d4c39eb15f5ef26d6a0413b2bced
+  - path: Game/Data13.cab
+    sha256: 6093022ef813138063c537f6a425dcfbb0f98ccfe371c15966cf16f962b941ae
+  - path: Game/Data14.cab
+    sha256: bc603f81a0c24e2f2f84fe3738bbf9c7dc14436c26f734d15149ceacdb129bcd
+  - path: Game/Data15.cab
+    sha256: 2d576ae07bc956c718460ea4a29ce037c2e978e31fdfbb663f98a6c932af9f65
+  - path: Game/Data16.cab
+    sha256: b0aec2bbf9f125d63adc1c4c94f6888c731b614a3d34992307077baef166504e
+  - path: Game/Data17.cab
+    sha256: 2ab0c93b276c5ed8427aaa5e0ea156eb668dab3221c287e5b384a6f64dd6f690
+  - path: Game/Data18.cab
+    sha256: 1691bc06e900fbae688a57c4c9bfcc4afdc2381442b90fee38f95af9e951703c
+  server_files:
+  - path: Server/Battlefield Bad Company 2 Server.msi
+    sha256: 34eae07486d9801dfbbe3c910cce3efe178457946d2cebd2a3f02654616f0873
+- name: Duck Game
+  base_path: Installers/Duck Game
+  version: 1.00.0000
+  install_msi: game/Duck Game.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
+  - path: game/Data1.cab
+    sha256: 113010ade066f8a630c4e94a802bd11f5953b4b232f062753d3c6e8f8e1671e0
+  - path: game/Duck Game.msi
+    sha256: 90b6e6358e9a7d0b4ab50e15b9bdf26f76acd5cb42eae74c8710a1af1a1e7fca

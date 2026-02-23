@@ -9,7 +9,36 @@ if getattr(sys, "frozen", False):
 else:
     BASE_DIR = Path(__file__).parent.parent   # project root (one level above app/)
 
-YAML_PATH = BASE_DIR / "config" / "games.yaml"
+
+def _locate_games_yaml() -> Path:
+    """Return the best candidate path for `config/games.yaml`.
+
+    Search order:
+      1. Current working directory /config/games.yaml
+      2. Directory next to the executable /config/games.yaml
+      3. Project source `config/games.yaml` (fallback when running from source)
+      4. Default: directory next to the executable (non-existing path)
+    """
+    candidates = []
+    # 1) Working directory (useful when user runs exe from a folder)
+    candidates.append(Path.cwd() / "config" / "games.yaml")
+    # 2) Folder next to the executable (install location)
+    try:
+        exe_dir = Path(sys.executable).resolve().parent
+    except Exception:
+        exe_dir = BASE_DIR
+    candidates.append(exe_dir / "config" / "games.yaml")
+    # 3) Project source layout (developer mode)
+    candidates.append(Path(__file__).parent.parent / "config" / "games.yaml")
+
+    for p in candidates:
+        if p.exists():
+            return p
+    # Default to exe-dir location if nothing exists (caller will handle missing file)
+    return candidates[1]
+
+
+YAML_PATH = _locate_games_yaml()
 
 # ── Colour palette ─────────────────────────────────────────────────────────────
 C: dict[str, str] = {
