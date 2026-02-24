@@ -9,7 +9,6 @@ from .config import BASE_DIR
 def run_installs(
     games: list[dict],
     install_dir: str,
-    install_type: str,
     player: str,
     server_ip_parts: list[str] | None,
 ) -> list[str]:
@@ -29,12 +28,8 @@ def run_installs(
                 args = prereq.get("args", "")
                 subprocess.run(f'"{prereq_path}" {args}'.strip(), shell=True, check=False)
 
-            # 2. Choose MSI (server variant takes priority when selected)
-            msi_rel = (
-                game["server_msi"]
-                if install_type == "server" and game.get("server_msi")
-                else game.get("install_msi", "")
-            )
+            # 2. Choose MSI from the entry's install_msi field
+            msi_rel = game.get("install_msi", "")
             if not msi_rel:
                 continue
 

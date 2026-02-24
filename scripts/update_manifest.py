@@ -7,7 +7,7 @@ Scans the ``Installers/`` tree for MSI and CAB files, reads MSI metadata
 **fully regenerates** ``config/games.yaml``.
 
 Manual fields already present in the YAML
-(supports_player_name, requires_server_ip, server_msi, prerequisites)
+(supports_player_name, requires_server_ip, prerequisites)
 are preserved; everything else is re-derived from the file system.
 
 Usage
@@ -28,7 +28,6 @@ INST_DIR  = ROOT_DIR / "Installers"
 YAML_PATH = ROOT_DIR / "config" / "games.yaml"
 
 # Fields that must be kept exactly as the user configured them in YAML.
-# NOTE: server_msi is now auto-detected from the Server/ subfolder.
 MANUAL_KEYS = (
     "supports_player_name",
     "requires_server_ip",
@@ -87,6 +86,21 @@ def load_existing_games() -> dict[str, dict]:
     return {g["name"]: g for g in data.get("games", [])}
 
 
+def _get_existing_entry(existing: dict[str, dict], name: str) -> dict:
+    """
+    Look up an existing entry by name.  For server entries named ``"X Server"``
+    that don't yet exist (first run after migration from combined format),
+    fall back to the base name ``"X"`` so manual settings are preserved.
+    """
+    if name in existing:
+        return existing[name]
+    if name.endswith(" Server"):
+        base = name[: -len(" Server")]
+        if base in existing:
+            return existing[base]
+    return {}
+
+
 # ── Core scanner ───────────────────────────────────────────────────────────────
 
 def _find_subdir(parent: Path, name: str) -> Path | None:
@@ -123,13 +137,14 @@ def _scan_subdir(subdir: Path, base_abs: Path) -> tuple[list[dict], Path | None]
 
 def scan_installers() -> list[dict]:
     """
-    Walk every subdirectory of ``Installers/`` and build a complete game entry
-    for each one.
+    Walk every subdirectory of ``Installers/`` and build complete installer
+    entries for each one.
 
-    Each entry uses a ``base_path`` (e.g. ``Installers/Warcraft III``) and
-    stores ``install_msi`` / ``server_msi`` paths *relative* to that base so
-    the full path is never duplicated.  A ``Server/`` subfolder (case-insensitive)
-    is automatically detected and produces ``server_msi`` + ``server_files``.
+    Each entry has a ``type`` of ``"game"`` or ``"server"`` and uses
+    ``base_path`` + relative ``install_msi`` paths so the full path is
+    never duplicated.  A ``Server/`` subfolder (case-insensitive) is
+    automatically detected and produces a *separate* server entry rather
+    than being embedded alongside the game entry.
     """
     if not INST_DIR.exists():
         print(f"[error] Installers directory not found: {INST_DIR}", file=sys.stderr)
@@ -144,34 +159,44 @@ def scan_installers() -> list[dict]:
         return []
 
     for game_dir in game_dirs:
-        game_name     = game_dir.name
-        base_path_rel = f"Installers/{game_name}"   # always forward-slash, relative to ROOT_DIR
+        dir_name      = game_dir.name
+        base_path_rel = f"Installers/{dir_name}"   # always forward-slash, relative to ROOT_DIR
         base_abs      = ROOT_DIR / base_path_rel     # absolute path = game_dir
-        print(f"\nProcessing: {game_name}")
+        print(f"\nProcessing: {dir_name}")
 
         # ── Locate game / server subdirs ───────────────────────────────────────
         game_subdir   = _find_subdir(game_dir, "game")
         server_subdir = _find_subdir(game_dir, "server")
 
-        # Fallback: if there is no game/ subdir, scan game_dir itself
-        scan_target = game_subdir if game_subdir else game_dir
-
         # ── Scan game installer files ──────────────────────────────────────────
-        game_file_entries, primary_game_msi = _scan_subdir(scan_target, base_abs)
+        # If there's a dedicated game/ subdir, scan it; if not and there's no
+        # server/ either, fall back to scanning the dir root as a game entry.
+        if game_subdir:
+            game_scan_target: Path | None = game_subdir
+        elif not server_subdir:
+            game_scan_target = game_dir   # root-level files treated as game
+        else:
+            game_scan_target = None       # server-only directory
+
+        game_file_entries: list[dict] = []
+        primary_game_msi:  Path | None = None
+        if game_scan_target is not None:
+            game_file_entries, primary_game_msi = _scan_subdir(game_scan_target, base_abs)
 
         # ── Scan server installer files (if present) ───────────────────────────
         server_file_entries: list[dict] = []
         primary_server_msi: Path | None = None
         if server_subdir:
-            print(f"  Server dir detected – scanning …")
+            print("  Server dir detected – scanning …")
             server_file_entries, primary_server_msi = _scan_subdir(server_subdir, base_abs)
 
         # ── Placeholder when no files were found anywhere ──────────────────────
         if not game_file_entries and not server_file_entries:
-            print(f"  [skip] No MSI/CAB files found – placeholder entry created.")
-            existing_entry = existing.get(game_name, {})
+            print("  [skip] No MSI/CAB files found – placeholder entry created.")
+            existing_entry = _get_existing_entry(existing, dir_name)
             entry: dict = {
-                "name":      game_name,
+                "name":      dir_name,
+                "type":      "game",
                 "base_path": base_path_rel,
             }
             for k in MANUAL_KEYS:
@@ -185,48 +210,67 @@ def scan_installers() -> list[dict]:
             games.append(entry)
             continue
 
-        # ── Read MSI metadata from primary game MSI ────────────────────────────
-        msi_version = ""
-        if primary_game_msi:
-            print(f"  Reading MSI metadata …")
-            props = read_msi_properties(primary_game_msi)
-            msi_version = props.get("ProductVersion", "").strip()
+        # ── Build game entry (if game files exist) ─────────────────────────────
+        if game_file_entries:
+            msi_version = ""
+            if primary_game_msi:
+                print("  Reading MSI metadata …")
+                props = read_msi_properties(primary_game_msi)
+                msi_version = props.get("ProductVersion", "").strip()
+                print(f"  Version   : {msi_version or '(not found in MSI)'}")
+
+            existing_entry = _get_existing_entry(existing, dir_name)
+            entry = {
+                "name":      dir_name,
+                "type":      "game",
+                "base_path": base_path_rel,
+            }
             if msi_version:
-                print(f"  Version   : {msi_version}")
-            else:
-                print(f"  Version   : (not found in MSI)")
+                entry["version"] = msi_version
+            if primary_game_msi:
+                entry["install_msi"] = primary_game_msi.relative_to(base_abs).as_posix()
+            for k in MANUAL_KEYS:
+                if k in existing_entry:
+                    entry[k] = existing_entry[k]
+                elif k == "prerequisites":
+                    entry[k] = []
+                elif k == "supports_player_name":
+                    entry[k] = False
+            entry["files"] = game_file_entries
+            games.append(entry)
 
-        # ── Merge with existing entry (preserve manual settings) ───────────────
-        existing_entry = existing.get(game_name, {})
-        entry = {
-            "name":      game_name,
-            "base_path": base_path_rel,
-        }
-
-        if msi_version:
-            entry["version"] = msi_version
-
-        if primary_game_msi:
-            # Path is relative to base_abs (e.g. "Game/Warcraft III.msi")
-            entry["install_msi"] = primary_game_msi.relative_to(base_abs).as_posix()
-
-        if primary_server_msi:
-            entry["server_msi"] = primary_server_msi.relative_to(base_abs).as_posix()
-
-        for k in MANUAL_KEYS:
-            if k in existing_entry:
-                entry[k] = existing_entry[k]
-            elif k == "prerequisites":
-                entry[k] = []
-            elif k == "supports_player_name":
-                entry[k] = False
-
-        entry["files"] = game_file_entries
-
+        # ── Build server entry (separate entry, never embedded) ────────────────
         if server_file_entries:
-            entry["server_files"] = server_file_entries
+            # Name the server entry "<dir> Server" when a game entry also
+            # exists, otherwise keep the original directory name.
+            server_name    = f"{dir_name} Server" if game_file_entries else dir_name
+            existing_entry = _get_existing_entry(existing, server_name)
 
-        games.append(entry)
+            msi_version = ""
+            if primary_server_msi:
+                print("  Reading server MSI metadata …")
+                props = read_msi_properties(primary_server_msi)
+                msi_version = props.get("ProductVersion", "").strip()
+                print(f"  Server version: {msi_version or '(not found in MSI)'}")
+
+            server_entry: dict = {
+                "name":      server_name,
+                "type":      "server",
+                "base_path": base_path_rel,
+            }
+            if msi_version:
+                server_entry["version"] = msi_version
+            if primary_server_msi:
+                server_entry["install_msi"] = primary_server_msi.relative_to(base_abs).as_posix()
+            for k in MANUAL_KEYS:
+                if k in existing_entry:
+                    server_entry[k] = existing_entry[k]
+                elif k == "prerequisites":
+                    server_entry[k] = []
+                elif k == "supports_player_name":
+                    server_entry[k] = False
+            server_entry["files"] = server_file_entries
+            games.append(server_entry)
 
     return games
 

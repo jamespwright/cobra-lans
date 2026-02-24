@@ -1,5 +1,6 @@
 games:
 - name: Age of Empires II
+  type: game
   base_path: Installers/Age of Empires II
   version: '1.0'
   install_msi: game/Age of Empires II.msi
@@ -8,6 +9,7 @@ games:
   files:
   - path: game/Age of Empires II.msi
 - name: Battlefield 1942
+  type: game
   base_path: Installers/Battlefield 1942
   version: '1.0'
   install_msi: game/Battlefield 1942.msi
@@ -19,6 +21,7 @@ games:
   - path: game/Data11.cab
   - path: game/Data12.cab
 - name: Battlefield 3
+  type: game
   base_path: Installers/Battlefield 3
   version: 1.00.0000
   install_msi: game/Battlefield 3.msi
@@ -59,10 +62,10 @@ games:
   - path: game/Data18.cab
   - path: game/Data19.cab
 - name: Battlefield Bad Company 2
+  type: game
   base_path: Installers/Battlefield Bad Company 2
   version: 1.00.0000
   install_msi: Game/Battlefield Bad Company 2.msi
-  server_msi: Server/Battlefield Bad Company 2 Server.msi
   supports_player_name: false
   prerequisites: []
   files:
@@ -76,13 +79,20 @@ games:
   - path: Game/Data16.cab
   - path: Game/Data17.cab
   - path: Game/Data18.cab
-  server_files:
+- name: Battlefield Bad Company 2 Server
+  type: server
+  base_path: Installers/Battlefield Bad Company 2
+  version: 1.00.0000
+  install_msi: Server/Battlefield Bad Company 2 Server.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
   - path: Server/Battlefield Bad Company 2 Server.msi
 - name: Battlefield Multi Server
+  type: server
   base_path: Installers/Battlefield Multi Server
   version: 1.00.0000
   install_msi: server/Battlefield Multi Server.msi
-  server_msi: server/Battlefield Multi Server.msi
   supports_player_name: false
   prerequisites: []
   files:
@@ -93,15 +103,8 @@ games:
   - path: server/Data13.cab
   - path: server/Data14.cab
   - path: server/Data15.cab
-  server_files:
-  - path: server/Battlefield Multi Server.msi
-  - path: server/Data1.cab
-  - path: server/Data11.cab
-  - path: server/Data12.cab
-  - path: server/Data13.cab
-  - path: server/Data14.cab
-  - path: server/Data15.cab
 - name: Call Of Duty
+  type: game
   base_path: Installers/Call Of Duty
   version: 1.00.0000
   install_msi: Game/Call Of Duty.msi
@@ -113,6 +116,7 @@ games:
   - path: Game/Data11.cab
   - path: Game/Data12.cab
 - name: Call Of Duty 4
+  type: game
   base_path: Installers/Call Of Duty 4
   version: 1.00.0000
   install_msi: Game/Call Of Duty 4.msi
@@ -127,10 +131,10 @@ games:
   - path: Game/Data14.cab
   - path: Game/Data15.cab
 - name: Chivalry Medieval Warfare
+  type: game
   base_path: Installers/Chivalry Medieval Warfare
   version: 1.00.0000
   install_msi: Game/Chivalry Medieval Warfare.msi
-  server_msi: Server/Chivalry Medieval Warfare Server.msi
   supports_player_name: false
   prerequisites: []
   files:
@@ -143,10 +147,18 @@ games:
   - path: Game/Data15.cab
   - path: Game/Data16.cab
   - path: Game/Data17.cab
-  server_files:
+- name: Chivalry Medieval Warfare Server
+  type: server
+  base_path: Installers/Chivalry Medieval Warfare
+  version: 1.00.0000
+  install_msi: Server/Chivalry Medieval Warfare Server.msi
+  supports_player_name: false
+  prerequisites: []
+  files:
   - path: Server/Chivalry Medieval Warfare Server.msi
   - path: Server/Data1.cab
 - name: Counter-Strike Global Offensive
+  type: game
   base_path: Installers/Counter-Strike Global Offensive
   version: 1.00.0000
   install_msi: Game/Counter-Strike Global Offensive.msi
@@ -160,6 +172,7 @@ games:
   - path: Game/Data13.cab
   - path: Game/Data14.cab
 - name: Duck Game
+  type: game
   base_path: Installers/Duck Game
   version: 1.00.0000
   install_msi: game/Duck Game.msi
@@ -169,6 +182,7 @@ games:
   - path: game/Data1.cab
   - path: game/Duck Game.msi
 - name: Flatout 2
+  type: game
   base_path: Installers/Flatout 2
   version: 1.00.0000
   install_msi: Game/Flatout 2.msi
@@ -180,6 +194,7 @@ games:
   - path: Game/Data12.cab
   - path: Game/Flatout 2.msi
 - name: Garrys Mod
+  type: game
   base_path: Installers/Garrys Mod
   version: 1.00.0000
   install_msi: Game/Garrys Mod.msi
@@ -192,6 +207,7 @@ games:
   - path: Game/Data13.cab
   - path: Game/Garrys Mod.msi
 - name: Grand Theft Auto IV
+  type: game
   base_path: Installers/Grand Theft Auto IV
   version: 1.00.0000
   install_msi: game/Grand Theft Auto IV.msi
@@ -215,6 +231,7 @@ games:
   - path: game/Data19.cab
   - path: game/Grand Theft Auto IV.msi
 - name: Killing Floor
+  type: game
   base_path: Installers/Killing Floor
   version: 1.00.0000
   install_msi: Game/Killing Floor.msi
@@ -226,6 +243,7 @@ games:
   - path: Game/Data12.cab
   - path: Game/Killing Floor.msi
 - name: Left 4 Dead 2
+  type: game
   base_path: Installers/Left 4 Dead 2
   version: 1.00.0000
   install_msi: Game/Left 4 Dead 2.msi
@@ -244,6 +262,7 @@ games:
   - path: Game/Data19.cab
   - path: Game/Left 4 Dead 2.msi
 - name: Need for Speed SHIFT
+  type: game
   base_path: Installers/Need for Speed SHIFT
   version: 1.00.0000
   install_msi: Game/Need for Speed SHIFT.msi
@@ -258,6 +277,7 @@ games:
   - path: Game/Data15.cab
   - path: Game/Need for Speed SHIFT.msi
 - name: Red Alert 3
+  type: game
   base_path: Installers/Red Alert 3
   version: 1.00.0000
   install_msi: Game/Red Alert 3.msi
@@ -273,6 +293,7 @@ games:
   - path: Game/Data16.cab
   - path: Game/Red Alert 3.msi
 - name: StarCraft II
+  type: game
   base_path: Installers/StarCraft II
   version: 1.00.0000
   install_msi: game/StarCraft II.msi
@@ -281,6 +302,7 @@ games:
   files:
   - path: game/StarCraft II.msi
 - name: Team Fortress 2
+  type: game
   base_path: Installers/Team Fortress 2
   version: 1.00.0000
   install_msi: Game/Team Fortress 2.msi
@@ -297,6 +319,7 @@ games:
   - path: Game/Data17.cab
   - path: Game/Team Fortress 2.msi
 - name: Tom Clancys Rainbow Six Siege
+  type: game
   base_path: Installers/Tom Clancys Rainbow Six Siege
   version: '1.0'
   install_msi: game/Tom Clancys Rainbow Six Siege.msi
@@ -319,6 +342,7 @@ games:
   - path: game/Data19.cab
   - path: game/Tom Clancys Rainbow Six Siege.msi
 - name: Unreal Tournament 3
+  type: game
   base_path: Installers/Unreal Tournament 3
   version: 1.00.0000
   install_msi: Game/Unreal Tournament 3.msi
@@ -336,6 +360,7 @@ games:
   - path: Game/Data18.cab
   - path: Game/Unreal Tournament 3.msi
 - name: Warcraft III
+  type: game
   base_path: Installers/Warcraft III
   version: 1.00.0000
   install_msi: Game/Warcraft III.msi
@@ -346,6 +371,7 @@ games:
   - path: Game/Data11.cab
   - path: Game/Warcraft III.msi
 - name: Wreckfest
+  type: game
   base_path: Installers/Wreckfest
   version: 1.00.0000
   install_msi: game/Wreckfest.msi

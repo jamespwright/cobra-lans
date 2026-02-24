@@ -40,6 +40,25 @@ def _locate_games_yaml() -> Path:
 
 YAML_PATH = _locate_games_yaml()
 
+
+def _locate_filter_yaml() -> Path | None:
+    """Return the path to `config/filter.yaml` if it exists, else None.
+
+    Applies the same search order as :func:`_locate_games_yaml`.
+    """
+    candidates = [
+        Path.cwd() / "config" / "filter.yaml",
+        Path(sys.executable).resolve().parent / "config" / "filter.yaml",
+        Path(__file__).parent.parent / "config" / "filter.yaml",
+    ]
+    for p in candidates:
+        if p.exists():
+            return p
+    return None
+
+
+FILTER_PATH: Path | None = _locate_filter_yaml()
+
 # ── Colour palette ─────────────────────────────────────────────────────────────
 C: dict[str, str] = {
     "bg":         "#04040a",

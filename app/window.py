@@ -133,17 +133,14 @@ class CobraLANs(tk.Tk):
         self._check_all_var.set(False)
 
         mode = self.install_type.get()
-        # In server mode show only games that have server files/MSI
-        if mode == "server":
-            visible = [g for g in self.games if g.get("server_msi") or g.get("server_files")]
-        else:
-            visible = self.games
+        # Show only entries whose type matches the selected install mode
+        visible = [g for g in self.games if g.get("type", "game") == mode]
 
         self._visible_games = visible
         for idx, game in enumerate(visible):
-            self._add_game_row(idx, game, mode)
+            self._add_game_row(idx, game)
 
-    def _add_game_row(self, idx: int, game: dict, mode: str = "game"):
+    def _add_game_row(self, idx: int, game: dict):
         row_bg = C["row_even"] if idx % 2 == 0 else C["row_odd"]
 
         frame = tk.Frame(self._row_container, bg=row_bg, pady=6, cursor="hand2")
@@ -187,14 +184,14 @@ class CobraLANs(tk.Tk):
         version_lbl.pack(side="right", padx=(0, 4))
 
         threading.Thread(
-            target=lambda v=size_var, g=game, m=mode: v.set(
-                folder_size_str(get_installer_folder(g, m))
+            target=lambda v=size_var, g=game: v.set(
+                folder_size_str(get_installer_folder(g))
             ),
             daemon=True,
         ).start()
 
-        def _run_verify(lbl=status_lbl, g=game, m=mode):
-            results   = verify_game_files(g, m)
+        def _run_verify(lbl=status_lbl, g=game):
+            results   = verify_game_files(g)
             text, key = game_integrity_summary(results)
             self.after(0, lambda t=text, k=key, lb=lbl: lb.configure(text=t, fg=C[k]))
 
@@ -315,7 +312,7 @@ class CobraLANs(tk.Tk):
         self._set_busy(True)
         threading.Thread(
             target=self._run_in_thread,
-            args=(selected, install_dir, self.install_type.get(), player, server_ip_parts),
+            args=(selected, install_dir, player, server_ip_parts),
             daemon=True,
         ).start()
 
@@ -323,11 +320,10 @@ class CobraLANs(tk.Tk):
         self,
         selected:          list[dict],
         install_dir:       str,
-        install_type:      str,
         player:            str,
         server_ip_parts:   list[str] | None,
     ):
-        errors = run_installs(selected, install_dir, install_type, player, server_ip_parts)
+        errors = run_installs(selected, install_dir, player, server_ip_parts)
         self.after(0, self._set_busy, False)
         if errors:
             self.after(0, lambda: messagebox.showerror(

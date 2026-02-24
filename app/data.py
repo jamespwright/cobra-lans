@@ -7,7 +7,7 @@ from tkinter import messagebox
 
 import yaml
 
-from .config import BASE_DIR, YAML_PATH
+from .config import BASE_DIR, FILTER_PATH, YAML_PATH
 
 
 # Status constants returned by verify_game_files
@@ -17,7 +17,12 @@ STATUS_MISMATCH  = "mismatch"   # MSI ProductVersion differs from YAML version
 
 
 def load_games() -> list[dict]:
-    """Load and return the games list from games.yaml; exits on failure."""
+    """Load and return the games list from games.yaml.
+
+    If ``config/filter.yaml`` exists its ``games`` list is treated as an
+    allow-list of game names; only matching entries are returned.
+    Exits on failure to read games.yaml.
+    """
     if not YAML_PATH.exists():
         messagebox.showerror(
             "Error",
@@ -29,7 +34,17 @@ def load_games() -> list[dict]:
         sys.exit(1)
     with open(YAML_PATH, "r", encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
-    return data.get("games", [])
+    games = data.get("games", [])
+
+    # Apply optional allow-list filter
+    if FILTER_PATH is not None:
+        with open(FILTER_PATH, "r", encoding="utf-8") as fh:
+            filter_data = yaml.safe_load(fh) or {}
+        allowed = {str(n) for n in filter_data.get("games", [])}
+        if allowed:
+            games = [g for g in games if g.get("name") in allowed]
+
+    return games
 
 
 def _read_msi_version(msi_path: Path) -> str:
@@ -59,14 +74,14 @@ def _base_path(game: dict) -> Path:
     return BASE_DIR
 
 
-def get_installer_folder(game: dict, mode: str = "game") -> Path:
+def get_installer_folder(game: dict) -> Path:
     """
-    Return the absolute path to the game or server installer subdirectory.
-    Tries an exact case-insensitive match for ``game/`` or ``server/``
-    inside the game's base_path; falls back to base_path itself.
+    Return the absolute path to the installer subdirectory for *game*.
+    Looks for a ``server/`` subdir for ``type='server'`` entries and a
+    ``game/`` subdir for all others.  Falls back to ``base_path`` itself.
     """
     base = _base_path(game)
-    target = "server" if mode == "server" else "game"
+    target = "server" if game.get("type") == "server" else "game"
     if base.exists():
         for child in base.iterdir():
             if child.is_dir() and child.name.lower() == target:
@@ -74,10 +89,9 @@ def get_installer_folder(game: dict, mode: str = "game") -> Path:
     return base
 
 
-def verify_game_files(game: dict, mode: str = "game") -> dict[str, str]:
+def verify_game_files(game: dict) -> dict[str, str]:
     """
-    Check every file listed in ``game['files']`` (game mode) or
-    ``game['server_files']`` (server mode) for existence on disk.
+    Check every file listed in ``game['files']`` for existence on disk.
     For the primary MSI, also verify that its ProductVersion matches
     the ``version`` recorded in the YAML.
 
@@ -88,15 +102,13 @@ def verify_game_files(game: dict, mode: str = "game") -> dict[str, str]:
         ``STATUS_MISSING``  – file does not exist on disk
         ``STATUS_MISMATCH`` – MSI exists but its ProductVersion differs from game['version']
 
-    Returns an empty dict when the game has no file entries for the mode.
+    Returns an empty dict when the game has no file entries.
     """
-    file_key         = "server_files" if mode == "server" else "files"
-    msi_key          = "server_msi"   if mode == "server" else "install_msi"
     base             = _base_path(game)
-    msi_rel          = game.get(msi_key, "")
+    msi_rel          = game.get("install_msi", "")
     expected_version = game.get("version", "").strip()
 
-    entries = [e["path"] for e in game.get(file_key, []) if e.get("path")]
+    entries = [e["path"] for e in game.get("files", []) if e.get("path")]
     if not entries:
         return {}
 
