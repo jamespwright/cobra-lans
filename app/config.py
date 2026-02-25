@@ -70,10 +70,13 @@ def _download_filter_yaml(dest: Path) -> bool:
 
 
 def _locate_filter_yaml() -> Path | None:
-    """Return the path to `config/filter.yaml` if it exists.
+    """Return the path to `config/filter.yaml`.
 
-    If the file is not found locally it is downloaded from GitHub and saved
-    next to ``games.yaml``.  Returns *None* only if the download also fails.
+    Always attempts to download the latest version from GitHub first,
+    overwriting any existing local copy.  If the download fails (network
+    error, etc.) falls back to the first existing local candidate.
+    If the remote file no longer exists (404) the local copy is deleted and
+    None is returned.
 
     Applies the same search order as :func:`_locate_games_yaml`.
     """
@@ -82,13 +85,14 @@ def _locate_filter_yaml() -> Path | None:
         Path(sys.executable).resolve().parent / "config" / "filter.yaml",
         Path(__file__).parent.parent / "config" / "filter.yaml",
     ]
-    for p in candidates:
-        if p.exists():
-            return p
-    # Not found locally – download alongside games.yaml
+    # Always try to pull the latest from GitHub
     save_to = YAML_PATH.parent / "filter.yaml"
     if _download_filter_yaml(save_to):
         return save_to
+    # Download failed (network issue) – fall back to any existing local copy
+    for p in candidates:
+        if p.exists():
+            return p
     return None
 
 
