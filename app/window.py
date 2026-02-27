@@ -242,7 +242,7 @@ class CobraLANs(tk.Tk):
         # Install mode
         mode_box = neon_box(center, "INSTALL MODE", color=C["magenta"])
         mode_row = tk.Frame(mode_box, bg=C["surface2"], pady=8)
-        mode_row.pack(fill="x", padx=10)
+        mode_row.pack(fill="x", padx=90)
         radio_kw = dict(font=FONT_BOLD, bg=C["surface2"], selectcolor=C["cb_select"],
                         bd=0, relief="flat")
         tk.Radiobutton(mode_row, text="GAME",   value="game",   variable=self.install_type,
@@ -263,7 +263,7 @@ class CobraLANs(tk.Tk):
         btn_outer = tk.Frame(center, bg=C["magenta"], padx=1, pady=1)
         btn_outer.pack(side="left", fill="y")
         self._install_btn = CyberButton(
-            btn_outer, text="\u25b6  INSTALL SELECTED", pady=12, command=self._on_install,
+            btn_outer, text="\u25b6  INSTALL GAMES", pady=12, command=self._on_install,
         )
         self._install_btn.pack(fill="both", expand=True)
 
