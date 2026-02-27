@@ -7,10 +7,9 @@ from tkinter import filedialog, messagebox, simpledialog
 from .config import C, FONT, FONT_BOLD, FONT_HEAD
 from .data import (
     folder_size_str,
-    game_integrity_summary,
     get_installer_folder,
     load_games,
-    verify_game_files,
+    verify_installer_crc,
 )
 from .installer import run_installs
 from .widgets import CyberButton, neon_box, neon_line
@@ -95,7 +94,7 @@ class CobraLANs(tk.Tk):
         tk.Label(col_row, text="", bg=C["surface"], width=3).pack(side="left")
         tk.Label(col_row, text="GAME TITLE",  font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"]).pack(side="left", padx=(4, 0))
         tk.Label(col_row, text="DISK SIZE",   font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"], width=10, anchor="e").pack(side="right", padx=(0, 8))
-        tk.Label(col_row, text="FILE STATUS", font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"], width=16, anchor="e").pack(side="right", padx=(0, 4))
+        tk.Label(col_row, text="CRC STATUS",  font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"], width=16, anchor="e").pack(side="right", padx=(0, 4))
         tk.Label(col_row, text="VERSION",     font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"], width=9,  anchor="e").pack(side="right", padx=(0, 4))
 
         neon_line(container, C["border_hi"])
@@ -191,8 +190,7 @@ class CobraLANs(tk.Tk):
         ).start()
 
         def _run_verify(lbl=status_lbl, g=game):
-            results   = verify_game_files(g)
-            text, key = game_integrity_summary(results)
+            text, key = verify_installer_crc(g)
             self.after(0, lambda t=text, k=key, lb=lbl: lb.configure(text=t, fg=C[k]))
 
         threading.Thread(target=_run_verify, daemon=True).start()

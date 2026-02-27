@@ -28,29 +28,53 @@ def run_installs(
                 args = prereq.get("args", "")
                 subprocess.run(f'"{prereq_path}" {args}'.strip(), shell=True, check=False)
 
-            # 2. Choose MSI from the entry's install_msi field
-            msi_rel = game.get("install_msi", "")
-            if not msi_rel:
-                continue
-
-            msi_path   = base_path / msi_rel
+            # 2. Dispatch based on installer type
+            installer_type = game.get("installer_type", "msi")
             target_dir = os.path.normpath(os.path.join(install_dir, game["name"]))
 
-            # 3. Build msiexec command
-            # INSTALLDIR must use backslashes and end with a trailing backslash
-            # so msiexec doesn't misinterpret the closing quote as escaped.
-            install_dir_msi = target_dir.rstrip("\\") + "\\"
-            cmd = ["msiexec", "/i", f'"{msi_path}"', f'INSTALLDIR="{install_dir_msi}"']
+            if installer_type == "inno_setup":
+                exe_rel = game.get("install_exe", "")
+                if not exe_rel:
+                    continue
 
-            if player and game.get("supports_player_name", False):
-                cmd.append(f'PLAYERNAME="{player}"')
+                exe_path = base_path / exe_rel
 
-            if server_ip_parts and game.get("requires_server_ip", False):
-                for i, octet in enumerate(server_ip_parts, start=1):
-                    cmd.append(f'SERVERADDRESS{i}="{octet}"')
+                # Inno Setup silent install flags
+                cmd = [
+                    f'"{exe_path}"',
+                    "/SILENT",
+                    "/SUPPRESSMSGBOXES",
+                    "/NORESTART",
+                    f'/DIR="{target_dir}"',
+                ]
 
-            cmd.append("/qb")
-            subprocess.run(" ".join(cmd), shell=True, check=True)
+                if player and game.get("supports_player_name", False):
+                    cmd.append(f'/PLAYERNAME="{player}"')
+
+                subprocess.run(" ".join(cmd), shell=True, check=True)
+
+            else:
+                # 3. Build msiexec command
+                msi_rel = game.get("install_msi", "")
+                if not msi_rel:
+                    continue
+
+                msi_path = base_path / msi_rel
+
+                # INSTALLDIR must use backslashes and end with a trailing backslash
+                # so msiexec doesn't misinterpret the closing quote as escaped.
+                install_dir_msi = target_dir.rstrip("\\") + "\\"
+                cmd = ["msiexec", "/i", f'"{msi_path}"', f'INSTALLDIR="{install_dir_msi}"']
+
+                if player and game.get("supports_player_name", False):
+                    cmd.append(f'PLAYERNAME="{player}"')
+
+                if server_ip_parts and game.get("requires_server_ip", False):
+                    for i, octet in enumerate(server_ip_parts, start=1):
+                        cmd.append(f'SERVERADDRESS{i}="{octet}"')
+
+                cmd.append("/qb")
+                subprocess.run(" ".join(cmd), shell=True, check=True)
 
         except subprocess.CalledProcessError as exc:
             errors.append(f'{game["name"]}: installer exited with code {exc.returncode}')

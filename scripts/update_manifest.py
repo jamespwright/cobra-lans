@@ -2,9 +2,13 @@
 """
 Cobra LANs – Manifest updater
 ==============================
-Scans the ``Installers/`` tree for MSI and CAB files, reads MSI metadata
-(ProductName, ProductVersion) via the Windows Installer COM object, then
-**fully regenerates** ``config/games.yaml``.
+Scans the ``Installers/`` tree, finds the primary installer (.exe or .msi)
+for each game, reads its version, computes its CRC32 hash, then **fully
+regenerates** ``config/games.yaml``.
+
+Only the primary installer is recorded — the per-file ``files`` list is not
+used.  The CRC32 is stored as ``crc32`` on each entry so the app can do a
+fast single-file integrity check at startup.
 
 Manual fields already present in the YAML
 (supports_player_name, requires_server_ip, prerequisites)
@@ -18,6 +22,7 @@ Usage
 import json
 import subprocess
 import sys
+import zlib
 from pathlib import Path
 
 import yaml
@@ -33,6 +38,17 @@ MANUAL_KEYS = (
     "requires_server_ip",
     "prerequisites",
 )
+
+
+# ── CRC32 helper ──────────────────────────────────────────────────────────────
+
+def _crc32_file(path: Path) -> str:
+    """Return the CRC32 of *path* as an 8-char uppercase hex string (1 MB chunks)."""
+    crc = 0
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            crc = zlib.crc32(chunk, crc)
+    return f"{crc & 0xFFFFFFFF:08X}"
 
 
 # ── Installer metadata readers ────────────────────────────────────────────────
@@ -135,15 +151,14 @@ def _find_subdir(parent: Path, name: str) -> Path | None:
     return None
 
 
-def _scan_subdir(subdir: Path, base_abs: Path) -> tuple[list[dict], Path | None, str]:
+def _find_primary_installer(subdir: Path) -> tuple[Path | None, str]:
     """
-    Collect all installer files inside *subdir* and return
-    ``(file_entries, primary_installer, installer_type)`` where paths in
-    *file_entries* are relative to *base_abs*.
+    Locate the primary installer inside *subdir* and return
+    ``(primary_path, installer_type)`` where ``installer_type`` is
+    ``"inno_setup"`` when ``.bin`` split-files are present, otherwise ``"msi"``.
 
-    ``installer_type`` is ``"inno_setup"`` when ``.bin`` files are detected
-    (Inno Setup splits its payload into ``.exe`` + ``.bin`` parts),
-    otherwise ``"msi"``.
+    Only ``.exe``/``.bin`` (Inno Setup) or ``.msi``/``.cab`` (MSI) files are
+    considered.  The first matching primary file is returned.
     """
     _MSI_EXTS  = {".msi", ".cab"}
     _INNO_EXTS = {".exe", ".bin"}
@@ -153,38 +168,33 @@ def _scan_subdir(subdir: Path, base_abs: Path) -> tuple[list[dict], Path | None,
         if f.is_file() and f.suffix.lower() in (_MSI_EXTS | _INNO_EXTS)
     )
     if not all_files:
-        return [], None, "msi"
+        return None, "msi"
 
-    # Presence of .bin files is the signal for Inno Setup
     has_bin        = any(f.suffix.lower() == ".bin" for f in all_files)
     installer_type = "inno_setup" if has_bin else "msi"
-    keep_exts      = _INNO_EXTS if installer_type == "inno_setup" else _MSI_EXTS
-    inst_files     = [f for f in all_files if f.suffix.lower() in keep_exts]
+    primary_ext    = ".exe" if installer_type == "inno_setup" else ".msi"
 
-    print(f"  Found {len(inst_files)} file(s) [{installer_type}].")
-    file_entries: list[dict]  = []
-    primary:      Path | None = None
-    for f in inst_files:
-        rel = f.relative_to(base_abs).as_posix()
-        file_entries.append({"path": rel})
-        if primary is None:
-            suffix = f.suffix.lower()
-            if (installer_type == "inno_setup" and suffix == ".exe") or \
-               (installer_type == "msi"         and suffix == ".msi"):
-                primary = f
-    return file_entries, primary, installer_type
+    primary = next(
+        (f for f in all_files if f.suffix.lower() == primary_ext),
+        None,
+    )
+    print(f"  Installer type : {installer_type}")
+    if primary:
+        print(f"  Primary file   : {primary.name}")
+    return primary, installer_type
 
 
 def scan_installers() -> list[dict]:
     """
-    Walk every subdirectory of ``Installers/`` and build complete installer
-    entries for each one.
+    Walk every subdirectory of ``Installers/`` and build installer entries.
 
-    Each entry has a ``type`` of ``"game"`` or ``"server"`` and uses
-    ``base_path`` + relative ``install_msi`` paths so the full path is
-    never duplicated.  A ``Server/`` subfolder (case-insensitive) is
-    automatically detected and produces a *separate* server entry rather
-    than being embedded alongside the game entry.
+    Each entry has a ``type`` of ``"game"`` or ``"server"``, identifies the
+    primary installer via ``install_exe`` or ``install_msi``, records the
+    version, and stores a ``crc32`` hash of the primary installer file so the
+    app can perform a fast single-file integrity check at startup.
+
+    A ``Server/`` subfolder (case-insensitive) is automatically detected and
+    produces a separate server entry.
     """
     if not INST_DIR.exists():
         print(f"[error] Installers directory not found: {INST_DIR}", file=sys.stderr)
@@ -200,41 +210,37 @@ def scan_installers() -> list[dict]:
 
     for game_dir in game_dirs:
         dir_name      = game_dir.name
-        base_path_rel = f"Installers/{dir_name}"   # always forward-slash, relative to ROOT_DIR
-        base_abs      = ROOT_DIR / base_path_rel     # absolute path = game_dir
+        base_path_rel = f"Installers/{dir_name}"
+        base_abs      = ROOT_DIR / base_path_rel
         print(f"\nProcessing: {dir_name}")
 
-        # ── Locate game / server subdirs ───────────────────────────────────────
         game_subdir   = _find_subdir(game_dir, "game")
         server_subdir = _find_subdir(game_dir, "server")
 
-        # ── Scan game installer files ──────────────────────────────────────────
-        # If there's a dedicated game/ subdir, scan it; if not and there's no
-        # server/ either, fall back to scanning the dir root as a game entry.
+        # Determine scan targets
         if game_subdir:
             game_scan_target: Path | None = game_subdir
         elif not server_subdir:
-            game_scan_target = game_dir   # root-level files treated as game
+            game_scan_target = game_dir
         else:
-            game_scan_target = None       # server-only directory
+            game_scan_target = None
 
-        game_file_entries:    list[dict] = []
-        primary_game_inst:   Path | None = None
-        game_installer_type: str = "msi"
+        # ── Scan game installer ────────────────────────────────────────────────
+        primary_game:    Path | None = None
+        game_inst_type:  str = "msi"
         if game_scan_target is not None:
-            game_file_entries, primary_game_inst, game_installer_type = _scan_subdir(game_scan_target, base_abs)
+            primary_game, game_inst_type = _find_primary_installer(game_scan_target)
 
-        # ── Scan server installer files (if present) ───────────────────────────
-        server_file_entries:   list[dict] = []
-        primary_server_inst:   Path | None = None
-        server_installer_type: str = "msi"
+        # ── Scan server installer ──────────────────────────────────────────────
+        primary_server:    Path | None = None
+        server_inst_type:  str = "msi"
         if server_subdir:
             print("  Server dir detected – scanning …")
-            server_file_entries, primary_server_inst, server_installer_type = _scan_subdir(server_subdir, base_abs)
+            primary_server, server_inst_type = _find_primary_installer(server_subdir)
 
-        # ── Placeholder when no files were found anywhere ──────────────────────
-        if not game_file_entries and not server_file_entries:
-            print("  [skip] No installer files found – placeholder entry created.")
+        # ── Placeholder when nothing found ────────────────────────────────────
+        if primary_game is None and primary_server is None:
+            print("  [skip] No installer found – placeholder entry created.")
             existing_entry = _get_existing_entry(existing, dir_name)
             entry: dict = {
                 "name":      dir_name,
@@ -248,35 +254,37 @@ def scan_installers() -> list[dict]:
                     entry[k] = []
                 elif k == "supports_player_name":
                     entry[k] = False
-            entry["files"] = []
             games.append(entry)
             continue
 
-        # ── Build game entry (if game files exist) ─────────────────────────────
-        if game_file_entries:
+        # ── Build game entry ───────────────────────────────────────────────────
+        if primary_game is not None:
             version = ""
-            if primary_game_inst:
-                if game_installer_type == "inno_setup":
-                    print("  Reading EXE version …")
-                    version = read_exe_version(primary_game_inst)
-                else:
-                    print("  Reading MSI metadata …")
-                    props = read_msi_properties(primary_game_inst)
-                    version = props.get("ProductVersion", "").strip()
-                print(f"  Version   : {version or '(not found)'}")
+            if game_inst_type == "inno_setup":
+                print("  Reading EXE version …")
+                version = read_exe_version(primary_game)
+            else:
+                print("  Reading MSI metadata …")
+                props   = read_msi_properties(primary_game)
+                version = props.get("ProductVersion", "").strip()
+            print(f"  Version        : {version or '(not found)'}")
+
+            print("  Computing CRC32 …")
+            crc = _crc32_file(primary_game)
+            print(f"  CRC32          : {crc}")
 
             existing_entry = _get_existing_entry(existing, dir_name)
+            inst_key = "install_exe" if game_inst_type == "inno_setup" else "install_msi"
             entry = {
                 "name":           dir_name,
                 "type":           "game",
-                "installer_type": game_installer_type,
+                "installer_type": game_inst_type,
                 "base_path":      base_path_rel,
             }
             if version:
                 entry["version"] = version
-            if primary_game_inst:
-                inst_key = "install_exe" if game_installer_type == "inno_setup" else "install_msi"
-                entry[inst_key] = primary_game_inst.relative_to(base_abs).as_posix()
+            entry[inst_key] = primary_game.relative_to(base_abs).as_posix()
+            entry["crc32"]  = crc
             for k in MANUAL_KEYS:
                 if k in existing_entry:
                     entry[k] = existing_entry[k]
@@ -284,38 +292,38 @@ def scan_installers() -> list[dict]:
                     entry[k] = []
                 elif k == "supports_player_name":
                     entry[k] = False
-            entry["files"] = game_file_entries
             games.append(entry)
 
-        # ── Build server entry (separate entry, never embedded) ────────────────
-        if server_file_entries:
-            # Name the server entry "<dir> Server" when a game entry also
-            # exists, otherwise keep the original directory name.
-            server_name    = f"{dir_name} Server" if game_file_entries else dir_name
+        # ── Build server entry ─────────────────────────────────────────────────
+        if primary_server is not None:
+            server_name    = f"{dir_name} Server" if primary_game is not None else dir_name
             existing_entry = _get_existing_entry(existing, server_name)
 
             version = ""
-            if primary_server_inst:
-                if server_installer_type == "inno_setup":
-                    print("  Reading server EXE version …")
-                    version = read_exe_version(primary_server_inst)
-                else:
-                    print("  Reading server MSI metadata …")
-                    props = read_msi_properties(primary_server_inst)
-                    version = props.get("ProductVersion", "").strip()
-                print(f"  Server version: {version or '(not found)'}")
+            if server_inst_type == "inno_setup":
+                print("  Reading server EXE version …")
+                version = read_exe_version(primary_server)
+            else:
+                print("  Reading server MSI metadata …")
+                props   = read_msi_properties(primary_server)
+                version = props.get("ProductVersion", "").strip()
+            print(f"  Server version : {version or '(not found)'}")
 
+            print("  Computing server CRC32 …")
+            crc = _crc32_file(primary_server)
+            print(f"  Server CRC32   : {crc}")
+
+            inst_key = "install_exe" if server_inst_type == "inno_setup" else "install_msi"
             server_entry: dict = {
                 "name":           server_name,
                 "type":           "server",
-                "installer_type": server_installer_type,
+                "installer_type": server_inst_type,
                 "base_path":      base_path_rel,
             }
             if version:
                 server_entry["version"] = version
-            if primary_server_inst:
-                inst_key = "install_exe" if server_installer_type == "inno_setup" else "install_msi"
-                server_entry[inst_key] = primary_server_inst.relative_to(base_abs).as_posix()
+            server_entry[inst_key] = primary_server.relative_to(base_abs).as_posix()
+            server_entry["crc32"]  = crc
             for k in MANUAL_KEYS:
                 if k in existing_entry:
                     server_entry[k] = existing_entry[k]
@@ -323,7 +331,6 @@ def scan_installers() -> list[dict]:
                     server_entry[k] = []
                 elif k == "supports_player_name":
                     server_entry[k] = False
-            server_entry["files"] = server_file_entries
             games.append(server_entry)
 
     return games

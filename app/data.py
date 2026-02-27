@@ -1,19 +1,13 @@
 """Cobra LANs – data loading and file-system utilities."""
 
-import json
 import sys
+import zlib
 from pathlib import Path
 from tkinter import messagebox
 
 import yaml
 
 from .config import BASE_DIR, FILTER_PATH, YAML_PATH
-
-
-# Status constants returned by verify_game_files
-STATUS_OK        = "ok"
-STATUS_MISSING   = "missing"
-STATUS_MISMATCH  = "mismatch"   # MSI ProductVersion differs from YAML version
 
 
 def load_games() -> list[dict]:
@@ -48,31 +42,10 @@ def load_games() -> list[dict]:
     return games
 
 
-def _read_msi_version(msi_path: Path) -> str:
-    """
-    Return the ProductVersion string from *msi_path* using the standard-library
-    ``msilib`` module (Windows only).  Returns an empty string on failure.
-    """
-    try:
-        import msilib  # noqa: PLC0415 – Windows-only stdlib module
-        db = msilib.OpenDatabase(str(msi_path), msilib.MSIDBOPEN_READONLY)
-        view = db.OpenView("SELECT Value FROM Property WHERE Property='ProductVersion'")
-        view.Execute(None)
-        record = view.Fetch()
-        if record:
-            return record.GetString(1)
-    except Exception:  # noqa: BLE001
-        pass
-    return ""
-
-
 def _base_path(game: dict) -> Path:
     """Return the absolute base installer directory for *game*."""
     bp = game.get("base_path", "")
-    if bp:
-        return BASE_DIR / bp
-    # Legacy fallback: old format stored full paths in files[].path
-    return BASE_DIR
+    return BASE_DIR / bp if bp else BASE_DIR
 
 
 def get_installer_folder(game: dict) -> Path:
@@ -81,7 +54,7 @@ def get_installer_folder(game: dict) -> Path:
     Looks for a ``server/`` subdir for ``type='server'`` entries and a
     ``game/`` subdir for all others.  Falls back to ``base_path`` itself.
     """
-    base = _base_path(game)
+    base   = _base_path(game)
     target = "server" if game.get("type") == "server" else "game"
     if base.exists():
         for child in base.iterdir():
@@ -90,74 +63,54 @@ def get_installer_folder(game: dict) -> Path:
     return base
 
 
-def verify_game_files(game: dict) -> dict[str, str]:
+def _primary_installer_path(game: dict) -> Path | None:
+    """Return the absolute path to the primary installer for *game*, or ``None``."""
+    base = _base_path(game)
+    rel  = game.get("install_exe") or game.get("install_msi") or ""
+    return base / rel if rel else None
+
+
+def _crc32_file(path: Path) -> str:
+    """Return the CRC32 of *path* as an 8-char uppercase hex string (1 MB chunks)."""
+    crc = 0
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            crc = zlib.crc32(chunk, crc)
+    return f"{crc & 0xFFFFFFFF:08X}"
+
+
+def verify_installer_crc(game: dict) -> tuple[str, str]:
     """
-    Check every file listed in ``game['files']`` for existence on disk.
-    For the primary MSI, also verify that its ProductVersion matches
-    the ``version`` recorded in the YAML.
+    Check the primary installer file using a CRC32 hash.
 
-    Paths in the file entries are relative to the game's ``base_path``.
-
-    Returns a dict mapping each relative path to one of:
-        ``STATUS_OK``       – file exists (and MSI version matches, if applicable)
-        ``STATUS_MISSING``  – file does not exist on disk
-        ``STATUS_MISMATCH`` – MSI exists but its ProductVersion differs from game['version']
-
-    Returns an empty dict when the game has no file entries.
-    """
-    base             = _base_path(game)
-    msi_rel          = game.get("install_msi", "")
-    expected_version = game.get("version", "").strip()
-
-    entries = [e["path"] for e in game.get("files", []) if e.get("path")]
-    if not entries:
-        return {}
-
-    results: dict[str, str] = {}
-    for rel in entries:
-        full_path = base / rel
-        if not full_path.exists():
-            results[rel] = STATUS_MISSING
-        elif msi_rel and Path(rel).as_posix() == Path(msi_rel).as_posix() and expected_version:
-            # Primary MSI – validate ProductVersion against the YAML version field
-            actual_version = _read_msi_version(full_path)
-            results[rel] = STATUS_OK if actual_version == expected_version else STATUS_MISMATCH
-        else:
-            results[rel] = STATUS_OK
-    return results
-
-
-def game_integrity_summary(file_results: dict[str, str]) -> tuple[str, str]:
-    """
-    Collapse per-file results into a concise ``(label, colour_key)`` pair
-    suitable for display in the UI.
-
+    Returns a ``(label, colour_key)`` pair for display in the UI where
     ``colour_key`` is one of ``"green"``, ``"red"``, ``"yellow"``, ``"text_dim"``.
     """
-    if not file_results:
-        return "— no files", "text_dim"
+    installer    = _primary_installer_path(game)
+    expected_crc = game.get("crc32", "").strip().upper()
 
-    missing  = sum(1 for s in file_results.values() if s == STATUS_MISSING)
-    mismatch = sum(1 for s in file_results.values() if s == STATUS_MISMATCH)
+    if installer is None:
+        return "\u2014 no installer", "text_dim"
 
-    if missing == 0 and mismatch == 0:
+    if not installer.exists():
+        return "\u2717 missing", "red"
+
+    if not expected_crc:
+        return "? no CRC", "text_dim"
+
+    actual_crc = _crc32_file(installer)
+    if actual_crc == expected_crc:
         return "\u2713 OK", "green"
-    parts: list[str] = []
-    if missing:
-        parts.append(f"{missing} missing")
-    if mismatch:
-        parts.append(f"{mismatch} mismatch")
-    colour = "red" if missing else "yellow"
-    return f"\u2717 {', '.join(parts)}", colour
+    return "\u2717 mismatch", "yellow"
 
 
 def folder_size_str(path: Path) -> str:
     """Return a human-readable size string for *path*, or '—' if absent/empty."""
     if not path.exists():
-        return "—"
+        return "\u2014"
     total = sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
     if total == 0:
-        return "—"
+        return "\u2014"
     for unit in ("B", "KB", "MB", "GB"):
         if total < 1024.0:
             return f"{total:.1f} {unit}"

@@ -1,12 +1,28 @@
 games:
+- name: Age of Empires II
+  type: game
+  installer_type: msi
+  base_path: Installers/Age of Empires II
+  version: '1.0'
+  install_msi: game/Age of Empires II.msi
+  crc32: BC78D1AA
+  supports_player_name: false
+  prerequisites: []
+- name: Battlefield 3
+  type: game
+  installer_type: inno_setup
+  base_path: Installers/Battlefield 3
+  version: '1.0'
+  install_exe: Game/Battlefield 3.exe
+  crc32: 9420B04A
+  supports_player_name: false
+  prerequisites: []
 - name: Battlefield 4
   type: game
   installer_type: inno_setup
   base_path: Installers/Battlefield 4
   version: '1.0'
-  install_exe: game/Battlefield 4.exe
+  install_exe: Game/Battlefield 4.exe
+  crc32: 895A434B
   supports_player_name: false
   prerequisites: []
-  files:
-  - path: game/Battlefield 4-1.bin
-  - path: game/Battlefield 4.exe
