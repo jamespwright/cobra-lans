@@ -40,9 +40,10 @@ def load_games() -> list[dict]:
     if FILTER_PATH is not None:
         with open(FILTER_PATH, "r", encoding="utf-8") as fh:
             filter_data = yaml.safe_load(fh) or {}
-        allowed = {str(n) for n in filter_data.get("games", [])}
-        if allowed:
-            games = [g for g in games if g.get("name") in allowed]
+        if filter_data.get("enabled", True):
+            allowed = {str(n) for n in filter_data.get("games", [])}
+            if allowed:
+                games = [g for g in games if g.get("name") in allowed]
 
     return games
 

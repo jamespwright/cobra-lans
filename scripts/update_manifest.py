@@ -35,7 +35,7 @@ MANUAL_KEYS = (
 )
 
 
-# ── MSI metadata reader ────────────────────────────────────────────────────────
+# ── Installer metadata readers ────────────────────────────────────────────────
 
 def read_msi_properties(msi_path: Path) -> dict[str, str]:
     """
@@ -70,6 +70,30 @@ def read_msi_properties(msi_path: Path) -> dict[str, str]:
     except Exception as exc:  # noqa: BLE001
         print(f"  [warn] MSI read failed for {msi_path.name}: {exc}", file=sys.stderr)
     return {}
+
+
+def read_exe_version(exe_path: Path) -> str:
+    """
+    Return the ``ProductVersion`` from an EXE's version resource via PowerShell.
+    Returns an empty string if reading fails.
+    """
+    ps = (
+        "$ErrorActionPreference='Stop';"
+        f"$v=(Get-Item '{exe_path}').VersionInfo.ProductVersion;"
+        "if($v){Write-Output $v}"
+    )
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception as exc:  # noqa: BLE001
+        print(f"  [warn] EXE version read failed for {exe_path.name}: {exc}", file=sys.stderr)
+    return ""
 
 
 # ── YAML helpers ───────────────────────────────────────────────────────────────
@@ -111,28 +135,44 @@ def _find_subdir(parent: Path, name: str) -> Path | None:
     return None
 
 
-def _scan_subdir(subdir: Path, base_abs: Path) -> tuple[list[dict], Path | None]:
+def _scan_subdir(subdir: Path, base_abs: Path) -> tuple[list[dict], Path | None, str]:
     """
-    Collect all MSI/CAB files inside *subdir* and return
-    ``(file_entries, primary_msi)`` where paths in *file_entries* are relative
-    to *base_abs* (the game's top-level installer directory).
-    """
-    inst_files = sorted(
-        f for f in subdir.rglob("*")
-        if f.is_file() and f.suffix.lower() in (".msi", ".cab")
-    )
-    if not inst_files:
-        return [], None
+    Collect all installer files inside *subdir* and return
+    ``(file_entries, primary_installer, installer_type)`` where paths in
+    *file_entries* are relative to *base_abs*.
 
-    print(f"  Found {len(inst_files)} file(s).")
-    file_entries: list[dict] = []
-    primary_msi: Path | None = None
+    ``installer_type`` is ``"inno_setup"`` when ``.bin`` files are detected
+    (Inno Setup splits its payload into ``.exe`` + ``.bin`` parts),
+    otherwise ``"msi"``.
+    """
+    _MSI_EXTS  = {".msi", ".cab"}
+    _INNO_EXTS = {".exe", ".bin"}
+
+    all_files = sorted(
+        f for f in subdir.rglob("*")
+        if f.is_file() and f.suffix.lower() in (_MSI_EXTS | _INNO_EXTS)
+    )
+    if not all_files:
+        return [], None, "msi"
+
+    # Presence of .bin files is the signal for Inno Setup
+    has_bin        = any(f.suffix.lower() == ".bin" for f in all_files)
+    installer_type = "inno_setup" if has_bin else "msi"
+    keep_exts      = _INNO_EXTS if installer_type == "inno_setup" else _MSI_EXTS
+    inst_files     = [f for f in all_files if f.suffix.lower() in keep_exts]
+
+    print(f"  Found {len(inst_files)} file(s) [{installer_type}].")
+    file_entries: list[dict]  = []
+    primary:      Path | None = None
     for f in inst_files:
-        rel = f.relative_to(base_abs).as_posix()  # e.g. "Game/Data1.cab"
+        rel = f.relative_to(base_abs).as_posix()
         file_entries.append({"path": rel})
-        if primary_msi is None and f.suffix.lower() == ".msi":
-            primary_msi = f
-    return file_entries, primary_msi
+        if primary is None:
+            suffix = f.suffix.lower()
+            if (installer_type == "inno_setup" and suffix == ".exe") or \
+               (installer_type == "msi"         and suffix == ".msi"):
+                primary = f
+    return file_entries, primary, installer_type
 
 
 def scan_installers() -> list[dict]:
@@ -178,21 +218,23 @@ def scan_installers() -> list[dict]:
         else:
             game_scan_target = None       # server-only directory
 
-        game_file_entries: list[dict] = []
-        primary_game_msi:  Path | None = None
+        game_file_entries:    list[dict] = []
+        primary_game_inst:   Path | None = None
+        game_installer_type: str = "msi"
         if game_scan_target is not None:
-            game_file_entries, primary_game_msi = _scan_subdir(game_scan_target, base_abs)
+            game_file_entries, primary_game_inst, game_installer_type = _scan_subdir(game_scan_target, base_abs)
 
         # ── Scan server installer files (if present) ───────────────────────────
-        server_file_entries: list[dict] = []
-        primary_server_msi: Path | None = None
+        server_file_entries:   list[dict] = []
+        primary_server_inst:   Path | None = None
+        server_installer_type: str = "msi"
         if server_subdir:
             print("  Server dir detected – scanning …")
-            server_file_entries, primary_server_msi = _scan_subdir(server_subdir, base_abs)
+            server_file_entries, primary_server_inst, server_installer_type = _scan_subdir(server_subdir, base_abs)
 
         # ── Placeholder when no files were found anywhere ──────────────────────
         if not game_file_entries and not server_file_entries:
-            print("  [skip] No MSI/CAB files found – placeholder entry created.")
+            print("  [skip] No installer files found – placeholder entry created.")
             existing_entry = _get_existing_entry(existing, dir_name)
             entry: dict = {
                 "name":      dir_name,
@@ -212,23 +254,29 @@ def scan_installers() -> list[dict]:
 
         # ── Build game entry (if game files exist) ─────────────────────────────
         if game_file_entries:
-            msi_version = ""
-            if primary_game_msi:
-                print("  Reading MSI metadata …")
-                props = read_msi_properties(primary_game_msi)
-                msi_version = props.get("ProductVersion", "").strip()
-                print(f"  Version   : {msi_version or '(not found in MSI)'}")
+            version = ""
+            if primary_game_inst:
+                if game_installer_type == "inno_setup":
+                    print("  Reading EXE version …")
+                    version = read_exe_version(primary_game_inst)
+                else:
+                    print("  Reading MSI metadata …")
+                    props = read_msi_properties(primary_game_inst)
+                    version = props.get("ProductVersion", "").strip()
+                print(f"  Version   : {version or '(not found)'}")
 
             existing_entry = _get_existing_entry(existing, dir_name)
             entry = {
-                "name":      dir_name,
-                "type":      "game",
-                "base_path": base_path_rel,
+                "name":           dir_name,
+                "type":           "game",
+                "installer_type": game_installer_type,
+                "base_path":      base_path_rel,
             }
-            if msi_version:
-                entry["version"] = msi_version
-            if primary_game_msi:
-                entry["install_msi"] = primary_game_msi.relative_to(base_abs).as_posix()
+            if version:
+                entry["version"] = version
+            if primary_game_inst:
+                inst_key = "install_exe" if game_installer_type == "inno_setup" else "install_msi"
+                entry[inst_key] = primary_game_inst.relative_to(base_abs).as_posix()
             for k in MANUAL_KEYS:
                 if k in existing_entry:
                     entry[k] = existing_entry[k]
@@ -246,22 +294,28 @@ def scan_installers() -> list[dict]:
             server_name    = f"{dir_name} Server" if game_file_entries else dir_name
             existing_entry = _get_existing_entry(existing, server_name)
 
-            msi_version = ""
-            if primary_server_msi:
-                print("  Reading server MSI metadata …")
-                props = read_msi_properties(primary_server_msi)
-                msi_version = props.get("ProductVersion", "").strip()
-                print(f"  Server version: {msi_version or '(not found in MSI)'}")
+            version = ""
+            if primary_server_inst:
+                if server_installer_type == "inno_setup":
+                    print("  Reading server EXE version …")
+                    version = read_exe_version(primary_server_inst)
+                else:
+                    print("  Reading server MSI metadata …")
+                    props = read_msi_properties(primary_server_inst)
+                    version = props.get("ProductVersion", "").strip()
+                print(f"  Server version: {version or '(not found)'}")
 
             server_entry: dict = {
-                "name":      server_name,
-                "type":      "server",
-                "base_path": base_path_rel,
+                "name":           server_name,
+                "type":           "server",
+                "installer_type": server_installer_type,
+                "base_path":      base_path_rel,
             }
-            if msi_version:
-                server_entry["version"] = msi_version
-            if primary_server_msi:
-                server_entry["install_msi"] = primary_server_msi.relative_to(base_abs).as_posix()
+            if version:
+                server_entry["version"] = version
+            if primary_server_inst:
+                inst_key = "install_exe" if server_installer_type == "inno_setup" else "install_msi"
+                server_entry[inst_key] = primary_server_inst.relative_to(base_abs).as_posix()
             for k in MANUAL_KEYS:
                 if k in existing_entry:
                     server_entry[k] = existing_entry[k]

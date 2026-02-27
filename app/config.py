@@ -1,7 +1,6 @@
 """Cobra LANs – shared constants: paths, colour palette, fonts."""
 
 import sys
-import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -51,20 +50,20 @@ _FILTER_YAML_URL = (
 def _download_filter_yaml(dest: Path) -> bool:
     """Download filter.yaml from GitHub into *dest*.
 
-    Returns True on success.  If the remote file does not exist (HTTP 404)
-    any local copy at *dest* is deleted and False is returned.  Other network
-    errors also return False without touching the filesystem.
+    Returns True on success, False on any error without touching the filesystem.
     """
     try:
         dest.parent.mkdir(parents=True, exist_ok=True)
-        with urllib.request.urlopen(_FILTER_YAML_URL) as response:
+        req = urllib.request.Request(
+            _FILTER_YAML_URL,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+            },
+        )
+        with urllib.request.urlopen(req) as response:
             dest.write_bytes(response.read())
         return True
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
-            # File removed from GitHub – delete local copy if present
-            dest.unlink(missing_ok=True)
-        return False
     except Exception:
         return False
 
@@ -72,24 +71,40 @@ def _download_filter_yaml(dest: Path) -> bool:
 def _locate_filter_yaml() -> Path | None:
     """Return the path to `config/filter.yaml`.
 
-    Always attempts to download the latest version from GitHub first,
-    overwriting any existing local copy.  If the download fails (network
-    error, etc.) falls back to the first existing local candidate.
-    If the remote file no longer exists (404) the local copy is deleted and
-    None is returned.
+    Checks the local filter.yaml for a ``sync_from_github`` flag (default
+    ``True``).  When enabled, downloads the latest version from GitHub,
+    overwriting the local copy.  If the download fails (network error,
+    etc.) or sync is disabled, falls back to the first existing local
+    candidate.
 
     Applies the same search order as :func:`_locate_games_yaml`.
     """
+    import yaml as _yaml  # local import to avoid circular issues at module level
+
     candidates = [
         Path.cwd() / "config" / "filter.yaml",
         Path(sys.executable).resolve().parent / "config" / "filter.yaml",
         Path(__file__).parent.parent / "config" / "filter.yaml",
     ]
-    # Always try to pull the latest from GitHub
-    save_to = YAML_PATH.parent / "filter.yaml"
-    if _download_filter_yaml(save_to):
-        return save_to
-    # Download failed (network issue) – fall back to any existing local copy
+
+    # Check whether the local copy opts out of GitHub sync
+    sync_enabled = True
+    for p in candidates:
+        if p.exists():
+            try:
+                with open(p, "r", encoding="utf-8") as _fh:
+                    _data = _yaml.safe_load(_fh) or {}
+                sync_enabled = _data.get("sync_from_github", True)
+            except Exception:
+                pass
+            break
+
+    if sync_enabled:
+        save_to = YAML_PATH.parent / "filter.yaml"
+        if _download_filter_yaml(save_to):
+            return save_to
+
+    # Sync disabled or download failed – fall back to any existing local copy
     for p in candidates:
         if p.exists():
             return p
