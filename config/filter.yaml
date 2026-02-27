@@ -2,6 +2,4 @@
 # Only the games named here will appear in the launcher.
 # Delete this file (or clear the list) to show all games.
 games:
-- Age of Empires II
-- Team Fortress 2
-- Battlefield Bad Company 2 Server
+- Battlefield 4
