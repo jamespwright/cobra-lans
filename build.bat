@@ -9,6 +9,7 @@ echo [Cobra LANs] Building executable...
 pyinstaller ^
     --onefile ^
     --noconsole ^
+    --uac-admin ^
     --name "Cobra LANs" ^
     --add-data "app;app" ^
     --collect-submodules app ^
@@ -37,4 +38,8 @@ if exist "dist\Cobra LANs.exe" (
         echo [Cobra LANs] Note: config\games.yaml not found locally; skipping copy.
     )
 )
+
+rem Cleanup build artifacts
+rd /s /q build >nul
+del /q "cobra_lans.spec"
 endlocal
