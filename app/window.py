@@ -278,13 +278,11 @@ class CobraLANs(tk.Tk):
             messagebox.showwarning("No Selection", "Select at least one game to install.")
             return
 
-        player     = self.player_name.get().strip()
-        needs_name = [g["name"] for g in selected if g.get("supports_player_name", False)]
-        if needs_name and not player:
+        player = self.player_name.get().strip()
+        if not player:
             messagebox.showwarning(
                 "Player Name Required",
-                "The following games require a player name:\n"
-                + "\n".join(f"  \u2022  {n}" for n in needs_name),
+                "Please enter your player name before installing.",
             )
             return
 
