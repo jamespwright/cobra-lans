@@ -23,6 +23,7 @@ class CobraLANs(tk.Tk):
         self.configure(bg=C["bg"])
         self.geometry("1200x1080")
         self.minsize(1060, 580)
+        self.state("zoomed")
 
         self.games: list[dict]                   = load_games()
         self._visible_games: list[dict]          = []
@@ -32,6 +33,7 @@ class CobraLANs(tk.Tk):
         self._check_all_var                      = tk.BooleanVar(value=False)
         self._install_btn: CyberButton | None    = None
         self._row_container: tk.Frame | None     = None
+        self._crc_cache: dict[str, tuple[str, str]] = {}
 
         self._build_ui()
 
@@ -189,11 +191,17 @@ class CobraLANs(tk.Tk):
             daemon=True,
         ).start()
 
-        def _run_verify(lbl=status_lbl, g=game):
-            text, key = verify_installer_crc(g)
-            self.after(0, lambda t=text, k=key, lb=lbl: lb.configure(text=t, fg=C[k]))
+        cache_key = game.get("name", str(game))
+        if cache_key in self._crc_cache:
+            text, key = self._crc_cache[cache_key]
+            self.after(0, lambda t=text, k=key, lb=status_lbl: lb.configure(text=t, fg=C[k]))
+        else:
+            def _run_verify(lbl=status_lbl, g=game, ck=cache_key):
+                text, key = verify_installer_crc(g)
+                self._crc_cache[ck] = (text, key)
+                self.after(0, lambda t=text, k=key, lb=lbl: lb.configure(text=t, fg=C[k]))
 
-        threading.Thread(target=_run_verify, daemon=True).start()
+            threading.Thread(target=_run_verify, daemon=True).start()
 
         # ── Row interaction helpers ────────────────────────────────────────────
 
@@ -227,8 +235,12 @@ class CobraLANs(tk.Tk):
         bar = tk.Frame(self, bg=C["bg"], padx=22, pady=14)
         bar.pack(fill="x")
 
+        # Centered container for all bottom-bar controls
+        center = tk.Frame(bar, bg=C["bg"])
+        center.pack(expand=True)
+
         # Install mode
-        mode_box = neon_box(bar, "INSTALL MODE", color=C["magenta"])
+        mode_box = neon_box(center, "INSTALL MODE", color=C["magenta"])
         mode_row = tk.Frame(mode_box, bg=C["surface2"], pady=8)
         mode_row.pack(fill="x", padx=10)
         radio_kw = dict(font=FONT_BOLD, bg=C["surface2"], selectcolor=C["cb_select"],
@@ -239,7 +251,7 @@ class CobraLANs(tk.Tk):
                        fg=C["magenta"], activebackground=C["surface2"], activeforeground=C["magenta"], **radio_kw).pack(side="left")
 
         # Player name
-        name_box = neon_box(bar, "PLAYER NAME", color=C["cyan"])
+        name_box = neon_box(center, "PLAYER NAME", color=C["cyan"])
         tk.Entry(
             name_box, textvariable=self.player_name, font=FONT, width=22,
             bg=C["entry_bg"], fg=C["text"], insertbackground=C["cyan"],
@@ -248,7 +260,7 @@ class CobraLANs(tk.Tk):
         ).pack(fill="x", padx=10, pady=10, ipady=6)
 
         # Install button
-        btn_outer = tk.Frame(bar, bg=C["magenta"], padx=1, pady=1)
+        btn_outer = tk.Frame(center, bg=C["magenta"], padx=1, pady=1)
         btn_outer.pack(side="left", fill="y")
         self._install_btn = CyberButton(
             btn_outer, text="\u25b6  INSTALL SELECTED", pady=12, command=self._on_install,
