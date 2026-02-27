@@ -1,6 +1,7 @@
 """Cobra LANs – shared constants: paths, colour palette, fonts."""
 
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
@@ -54,8 +55,10 @@ def _download_filter_yaml(dest: Path) -> bool:
     """
     try:
         dest.parent.mkdir(parents=True, exist_ok=True)
+        bust = int(time.time())
+        url = f"{_FILTER_YAML_URL}?_={bust}"
         req = urllib.request.Request(
-            _FILTER_YAML_URL,
+            url,
             headers={
                 "Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
