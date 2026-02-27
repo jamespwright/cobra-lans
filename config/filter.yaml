@@ -1,5 +1,6 @@
 # filter.yaml – optional allow-list of games to display.
 # Only the games named here will appear in the launcher.
 # Delete this file (or clear the list) to show all games.
+enabled: false
 games:
 - Battlefield 4
