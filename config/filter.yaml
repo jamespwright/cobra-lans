@@ -3,7 +3,7 @@
 # Set sync_from_github to true to automatically update this list from the GitHub repository or set it to false to manage the list manually.
 # Set enabled to true to enable the filter or false to disable it and show all games.
 
-enabled: false
+enabled: true
 sync_from_github: true
 games:
 - Battlefield 4
