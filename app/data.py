@@ -49,18 +49,12 @@ def _base_path(game: dict) -> Path:
 
 
 def get_installer_folder(game: dict) -> Path:
+    """Return the absolute path to the installer directory for *game*.
+
+    ``base_path`` already points to the full installer subdirectory
+    (e.g. ``Installers/Call Of Duty 4/Game``), so this simply resolves it.
     """
-    Return the absolute path to the installer subdirectory for *game*.
-    Looks for a ``server/`` subdir for ``type='server'`` entries and a
-    ``game/`` subdir for all others.  Falls back to ``base_path`` itself.
-    """
-    base   = _base_path(game)
-    target = "server" if game.get("type") == "server" else "game"
-    if base.exists():
-        for child in base.iterdir():
-            if child.is_dir() and child.name.lower() == target:
-                return child
-    return base
+    return _base_path(game)
 
 
 def _primary_installer_path(game: dict) -> Path | None:

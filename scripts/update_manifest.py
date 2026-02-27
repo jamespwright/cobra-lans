@@ -211,7 +211,6 @@ def scan_installers() -> list[dict]:
     for game_dir in game_dirs:
         dir_name      = game_dir.name
         base_path_rel = f"Installers/{dir_name}"
-        base_abs      = ROOT_DIR / base_path_rel
         print(f"\nProcessing: {dir_name}")
 
         game_subdir   = _find_subdir(game_dir, "game")
@@ -275,15 +274,20 @@ def scan_installers() -> list[dict]:
 
             existing_entry = _get_existing_entry(existing, dir_name)
             inst_key = "install_exe" if game_inst_type == "inno_setup" else "install_msi"
+            game_base = (
+                f"Installers/{dir_name}/{game_scan_target.name}"
+                if game_scan_target is not game_dir
+                else base_path_rel
+            )
             entry = {
                 "name":           dir_name,
                 "type":           "game",
                 "installer_type": game_inst_type,
-                "base_path":      base_path_rel,
+                "base_path":      game_base,
             }
             if version:
                 entry["version"] = version
-            entry[inst_key] = primary_game.relative_to(base_abs).as_posix()
+            entry[inst_key] = primary_game.name
             entry["crc32"]  = crc
             for k in MANUAL_KEYS:
                 if k in existing_entry:
@@ -318,11 +322,11 @@ def scan_installers() -> list[dict]:
                 "name":           server_name,
                 "type":           "server",
                 "installer_type": server_inst_type,
-                "base_path":      base_path_rel,
+                "base_path":      f"Installers/{dir_name}/{server_subdir.name}",
             }
             if version:
                 server_entry["version"] = version
-            server_entry[inst_key] = primary_server.relative_to(base_abs).as_posix()
+            server_entry[inst_key] = primary_server.name
             server_entry["crc32"]  = crc
             for k in MANUAL_KEYS:
                 if k in existing_entry:

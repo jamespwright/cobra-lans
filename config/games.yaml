@@ -2,225 +2,225 @@ games:
 - name: Battlefield 3
   type: game
   installer_type: inno_setup
-  base_path: Installers/Battlefield 3
+  base_path: Installers/Battlefield 3/Game
   version: '1.0'
-  install_exe: Game/Battlefield 3.exe
+  install_exe: Battlefield 3.exe
   crc32: 9420B04A
   supports_player_name: false
   prerequisites: []
 - name: Battlefield 4
   type: game
   installer_type: inno_setup
-  base_path: Installers/Battlefield 4
+  base_path: Installers/Battlefield 4/Game
   version: '1.0'
-  install_exe: Game/Battlefield 4.exe
+  install_exe: Battlefield 4.exe
   crc32: 895A434B
   supports_player_name: false
   prerequisites: []
 - name: Age of Empires II
   type: game
   installer_type: msi
-  base_path: Installers/Age of Empires II
+  base_path: Installers/Age of Empires II/game
   version: '1.0'
-  install_msi: game/Age of Empires II.msi
+  install_msi: Age of Empires II.msi
   crc32: BC78D1AA
   supports_player_name: false
   prerequisites: []
 - name: Battlefield 1942
   type: game
   installer_type: msi
-  base_path: Installers/Battlefield 1942
+  base_path: Installers/Battlefield 1942/game
   version: '1.0'
-  install_msi: game/Battlefield 1942.msi
+  install_msi: Battlefield 1942.msi
   crc32: 0CA6D5BF
   supports_player_name: false
   prerequisites: []
 - name: Battlefield Bad Company 2
   type: game
   installer_type: msi
-  base_path: Installers/Battlefield Bad Company 2
+  base_path: Installers/Battlefield Bad Company 2/Game
   version: 1.00.0000
-  install_msi: Game/Battlefield Bad Company 2.msi
+  install_msi: Battlefield Bad Company 2.msi
   crc32: 13AFAAFF
   supports_player_name: false
   prerequisites: []
 - name: Battlefield Bad Company 2 Server
   type: server
   installer_type: msi
-  base_path: Installers/Battlefield Bad Company 2
+  base_path: Installers/Battlefield Bad Company 2/Server
   version: 1.00.0000
-  install_msi: Server/Battlefield Bad Company 2 Server.msi
+  install_msi: Battlefield Bad Company 2 Server.msi
   crc32: 369DDB2C
   supports_player_name: false
   prerequisites: []
 - name: Battlefield Multi Server
   type: server
   installer_type: msi
-  base_path: Installers/Battlefield Multi Server
+  base_path: Installers/Battlefield Multi Server/server
   version: 1.00.0000
-  install_msi: server/Battlefield Multi Server.msi
+  install_msi: Battlefield Multi Server.msi
   crc32: 43EEC726
   supports_player_name: false
   prerequisites: []
 - name: Call Of Duty
   type: game
   installer_type: msi
-  base_path: Installers/Call Of Duty
+  base_path: Installers/Call Of Duty/Game
   version: 1.00.0000
-  install_msi: Game/Call Of Duty.msi
+  install_msi: Call Of Duty.msi
   crc32: 80CEB58B
   supports_player_name: false
   prerequisites: []
 - name: Call Of Duty 4
   type: game
   installer_type: msi
-  base_path: Installers/Call Of Duty 4
+  base_path: Installers/Call Of Duty 4/Game
   version: 1.00.0000
-  install_msi: Game/Call Of Duty 4.msi
+  install_msi: Call Of Duty 4.msi
   crc32: 7DE8DFD6
   supports_player_name: false
   prerequisites: []
 - name: Chivalry Medieval Warfare
   type: game
   installer_type: msi
-  base_path: Installers/Chivalry Medieval Warfare
+  base_path: Installers/Chivalry Medieval Warfare/Game
   version: 1.00.0000
-  install_msi: Game/Chivalry Medieval Warfare.msi
+  install_msi: Chivalry Medieval Warfare.msi
   crc32: B50CE601
   supports_player_name: false
   prerequisites: []
 - name: Chivalry Medieval Warfare Server
   type: server
   installer_type: msi
-  base_path: Installers/Chivalry Medieval Warfare
+  base_path: Installers/Chivalry Medieval Warfare/Server
   version: 1.00.0000
-  install_msi: Server/Chivalry Medieval Warfare Server.msi
+  install_msi: Chivalry Medieval Warfare Server.msi
   crc32: BD1E74BC
   supports_player_name: false
   prerequisites: []
 - name: Counter-Strike Global Offensive
   type: game
   installer_type: msi
-  base_path: Installers/Counter-Strike Global Offensive
+  base_path: Installers/Counter-Strike Global Offensive/Game
   version: 1.00.0000
-  install_msi: Game/Counter-Strike Global Offensive.msi
+  install_msi: Counter-Strike Global Offensive.msi
   crc32: 2F07B0C1
   supports_player_name: false
   prerequisites: []
 - name: Duck Game
   type: game
   installer_type: msi
-  base_path: Installers/Duck Game
+  base_path: Installers/Duck Game/game
   version: 1.00.0000
-  install_msi: game/Duck Game.msi
+  install_msi: Duck Game.msi
   crc32: 2E6BA5B8
   supports_player_name: false
   prerequisites: []
 - name: Flatout 2
   type: game
   installer_type: msi
-  base_path: Installers/Flatout 2
+  base_path: Installers/Flatout 2/Game
   version: 1.00.0000
-  install_msi: Game/Flatout 2.msi
+  install_msi: Flatout 2.msi
   crc32: 64DBC7A5
   supports_player_name: false
   prerequisites: []
 - name: Garrys Mod
   type: game
   installer_type: msi
-  base_path: Installers/Garrys Mod
+  base_path: Installers/Garrys Mod/Game
   version: 1.00.0000
-  install_msi: Game/Garrys Mod.msi
+  install_msi: Garrys Mod.msi
   crc32: 6C30C924
   supports_player_name: false
   prerequisites: []
 - name: Grand Theft Auto IV
   type: game
   installer_type: msi
-  base_path: Installers/Grand Theft Auto IV
+  base_path: Installers/Grand Theft Auto IV/game
   version: 1.00.0000
-  install_msi: game/Grand Theft Auto IV.msi
+  install_msi: Grand Theft Auto IV.msi
   crc32: 4AEF5A99
   supports_player_name: false
   prerequisites: []
 - name: Killing Floor
   type: game
   installer_type: msi
-  base_path: Installers/Killing Floor
+  base_path: Installers/Killing Floor/Game
   version: 1.00.0000
-  install_msi: Game/Killing Floor.msi
+  install_msi: Killing Floor.msi
   crc32: 3D3408EC
   supports_player_name: false
   prerequisites: []
 - name: Left 4 Dead 2
   type: game
   installer_type: msi
-  base_path: Installers/Left 4 Dead 2
+  base_path: Installers/Left 4 Dead 2/Game
   version: 1.00.0000
-  install_msi: Game/Left 4 Dead 2.msi
+  install_msi: Left 4 Dead 2.msi
   crc32: DADD5FBD
   supports_player_name: false
   prerequisites: []
 - name: Need for Speed SHIFT
   type: game
   installer_type: msi
-  base_path: Installers/Need for Speed SHIFT
+  base_path: Installers/Need for Speed SHIFT/Game
   version: 1.00.0000
-  install_msi: Game/Need for Speed SHIFT.msi
+  install_msi: Need for Speed SHIFT.msi
   crc32: 59E2BAC1
   supports_player_name: false
   prerequisites: []
 - name: Red Alert 3
   type: game
   installer_type: msi
-  base_path: Installers/Red Alert 3
+  base_path: Installers/Red Alert 3/Game
   version: 1.00.0000
-  install_msi: Game/Red Alert 3.msi
+  install_msi: Red Alert 3.msi
   crc32: DF71B41D
   supports_player_name: false
   prerequisites: []
 - name: StarCraft II
   type: game
   installer_type: msi
-  base_path: Installers/StarCraft II
+  base_path: Installers/StarCraft II/game
   version: 1.00.0000
-  install_msi: game/StarCraft II.msi
+  install_msi: StarCraft II.msi
   crc32: B666D63C
   supports_player_name: false
   prerequisites: []
 - name: Team Fortress 2
   type: game
   installer_type: msi
-  base_path: Installers/Team Fortress 2
+  base_path: Installers/Team Fortress 2/Game
   version: 1.00.0000
-  install_msi: Game/Team Fortress 2.msi
+  install_msi: Team Fortress 2.msi
   crc32: 3EF9DDEC
   supports_player_name: false
   prerequisites: []
 - name: Tom Clancys Rainbow Six Siege
   type: game
   installer_type: msi
-  base_path: Installers/Tom Clancys Rainbow Six Siege
+  base_path: Installers/Tom Clancys Rainbow Six Siege/game
   version: '1.0'
-  install_msi: game/Tom Clancys Rainbow Six Siege.msi
+  install_msi: Tom Clancys Rainbow Six Siege.msi
   crc32: 748D67FE
   supports_player_name: false
   prerequisites: []
 - name: Unreal Tournament 3
   type: game
   installer_type: msi
-  base_path: Installers/Unreal Tournament 3
+  base_path: Installers/Unreal Tournament 3/Game
   version: 1.00.0000
-  install_msi: Game/Unreal Tournament 3.msi
+  install_msi: Unreal Tournament 3.msi
   crc32: 6ADEE53A
   supports_player_name: false
   prerequisites: []
 - name: Warcraft III
   type: game
   installer_type: msi
-  base_path: Installers/Warcraft III
+  base_path: Installers/Warcraft III/Game
   version: 1.00.0000
-  install_msi: Game/Warcraft III.msi
+  install_msi: Warcraft III.msi
   crc32: E59CDA8E
   supports_player_name: false
   prerequisites: []
