@@ -6,10 +6,11 @@ from tkinter import filedialog, messagebox, simpledialog
 
 from .config import C, FONT, FONT_BOLD, FONT_HEAD
 from .data import (
+    check_game_files,
     folder_size_str,
     get_installer_folder,
     load_games,
-    verify_installer_crc,
+    load_manifest,
 )
 from .installer import run_installs
 from .widgets import CyberButton, neon_box, neon_line
@@ -21,19 +22,20 @@ class CobraLANs(tk.Tk):
         super().__init__()
         self.title("Cobra LANs")
         self.configure(bg=C["bg"])
-        self.geometry("1200x1080")
+        self.geometry("1500x1080")
         self.minsize(1060, 580)
-        self.state("zoomed")
+        #self.state("zoomed")
 
         self.games: list[dict]                   = load_games()
+        self._manifest: dict[str, list[dict]]    = load_manifest()
         self._visible_games: list[dict]          = []
         self.check_vars: list[tk.BooleanVar]     = []
+        self._stripe_widgets: list[tk.Frame]     = []
         self.install_type                        = tk.StringVar(value="game")
         self.player_name                         = tk.StringVar()
         self._check_all_var                      = tk.BooleanVar(value=False)
         self._install_btn: CyberButton | None    = None
         self._row_container: tk.Frame | None     = None
-        self._crc_cache: dict[str, tuple[str, str]] = {}
 
         self._build_ui()
 
@@ -62,7 +64,7 @@ class CobraLANs(tk.Tk):
         tk.Label(inner, text="COBRA",           font=FONT_HEAD, bg=C["header"], fg=C["cyan"]   ).pack(side="left")
         tk.Label(inner, text=" LANs",           font=FONT_HEAD, bg=C["header"], fg=C["magenta"]).pack(side="left")
         tk.Label(inner, text=" :: GAME INSTALLER",
-                 font=("Courier New", 14), bg=C["header"], fg=C["text_dim"],
+                 font=("Courier New", 25), bg=C["header"], fg=C["text_dim"],
                  ).pack(side="left", padx=(10, 0), anchor="s", pady=(0, 6))
 
         neon_line(hdr, C["magenta"])
@@ -81,23 +83,32 @@ class CobraLANs(tk.Tk):
         hdr_bar.pack(fill="x")
         tk.Label(hdr_bar, text="  \u25b8 SELECT GAMES", font=FONT_BOLD,
                  bg=C["surface2"], fg=C["cyan"], pady=8).pack(side="left")
-        tk.Checkbutton(
-            hdr_bar, text="ALL  ", variable=self._check_all_var, command=self._toggle_all,
-            font=FONT_BOLD, bg=C["surface2"], fg=C["magenta"],
-            selectcolor=C["cb_select"], activebackground=C["surface2"],
-            activeforeground=C["magenta"], bd=0, relief="flat",
-        ).pack(side="right")
 
         neon_line(container, C["cyan"])
 
-        # Column sub-header
+        # Column sub-header – mirrors _add_game_row's left section exactly so
+        # every column header lines up with the corresponding row cell.
         col_row = tk.Frame(container, bg=C["surface"], pady=4)
-        col_row.pack(fill="x", padx=10)
-        tk.Label(col_row, text="", bg=C["surface"], width=3).pack(side="left")
-        tk.Label(col_row, text="GAME TITLE",  font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"]).pack(side="left", padx=(4, 0))
-        tk.Label(col_row, text="DISK SIZE",   font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"], width=10, anchor="e").pack(side="right", padx=(0, 8))
-        tk.Label(col_row, text="CRC STATUS",  font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"], width=16, anchor="e").pack(side="right", padx=(0, 4))
-        tk.Label(col_row, text="VERSION",     font=FONT_BOLD, bg=C["surface"], fg=C["text_dim"], width=9,  anchor="e").pack(side="right", padx=(0, 4))
+        col_row.pack(fill="x")
+        # ── left placeholders (must match row: stripe → checkbox → index) ──
+        tk.Frame(col_row, bg=C["surface"], width=4).pack(side="left", fill="y")   # stripe
+        tk.Checkbutton(
+            col_row, variable=self._check_all_var, command=self._toggle_all,
+            font=FONT_BOLD, bg=C["surface"], fg=C["magenta"],
+            selectcolor=C["cb_select"], activebackground=C["surface"],
+            activeforeground=C["magenta"], bd=0, relief="flat",
+        ).pack(side="left", padx=(6, 0))
+        tk.Label(col_row, text="", font=FONT, bg=C["surface"], width=3).pack(side="left")   # index
+        # ── expandable title ──
+        tk.Label(col_row, text="GAME TITLE", font=FONT_BOLD,
+                 bg=C["surface"], fg=C["text_dim"]).pack(side="left", padx=(8, 0))
+        # ── right columns – pack STATUS first so it sits at the far right ──
+        tk.Label(col_row, text="STATUS",    font=FONT_BOLD,
+             bg=C["surface"], fg=C["text_dim"], width=32, anchor="e").pack(side="right", padx=(0, 4))
+        tk.Label(col_row, text="DISK SIZE", font=FONT_BOLD,
+             bg=C["surface"], fg=C["text_dim"], width=10, anchor="e").pack(side="right", padx=(0, 12))
+        tk.Label(col_row, text="VERSION",   font=FONT_BOLD,
+             bg=C["surface"], fg=C["text_dim"], width=9,  anchor="e").pack(side="right", padx=(0, 4))
 
         neon_line(container, C["border_hi"])
 
@@ -131,6 +142,7 @@ class CobraLANs(tk.Tk):
         for child in self._row_container.winfo_children():
             child.destroy()
         self.check_vars.clear()
+        self._stripe_widgets.clear()
         self._check_all_var.set(False)
 
         mode = self.install_type.get()
@@ -152,6 +164,7 @@ class CobraLANs(tk.Tk):
 
         var = tk.BooleanVar(value=False)
         self.check_vars.append(var)
+        self._stripe_widgets.append(stripe)
 
         def _update_stripe(v=var, s=stripe):
             s.configure(bg=C["cyan"] if v.get() else C["border"])
@@ -173,15 +186,17 @@ class CobraLANs(tk.Tk):
 
         size_var = tk.StringVar(value="---")
         size_lbl = tk.Label(frame, textvariable=size_var, font=FONT,
-                             fg=C["accent_dim"], bg=row_bg, width=10, anchor="e")
-        size_lbl.pack(side="right", padx=(0, 12))
+                     fg=C["accent_dim"], bg=row_bg, width=10, anchor="e")
 
-        status_lbl = tk.Label(frame, text="checking…", font=FONT,
-                               fg=C["text_dim"], bg=row_bg, width=16, anchor="e")
-        status_lbl.pack(side="right", padx=(0, 4))
+        status_lbl = tk.Label(frame, text="—", font=FONT,
+                       fg=C["text_dim"], bg=row_bg, width=32, anchor="e")
 
         version_lbl = tk.Label(frame, text=game.get("version", "—"), font=FONT,
-                                fg=C["text_dim"], bg=row_bg, width=9, anchor="e")
+                    fg=C["text_dim"], bg=row_bg, width=9, anchor="e")
+
+        # Pack right-side columns: STATUS first (far right), then DISK SIZE, then VERSION
+        status_lbl.pack(side="right", padx=(0, 4))
+        size_lbl.pack(side="right", padx=(0, 12))
         version_lbl.pack(side="right", padx=(0, 4))
 
         threading.Thread(
@@ -190,18 +205,6 @@ class CobraLANs(tk.Tk):
             ),
             daemon=True,
         ).start()
-
-        cache_key = game.get("name", str(game))
-        if cache_key in self._crc_cache:
-            text, key = self._crc_cache[cache_key]
-            self.after(0, lambda t=text, k=key, lb=status_lbl: lb.configure(text=t, fg=C[k]))
-        else:
-            def _run_verify(lbl=status_lbl, g=game, ck=cache_key):
-                text, key = verify_installer_crc(g)
-                self._crc_cache[ck] = (text, key)
-                self.after(0, lambda t=text, k=key, lb=lbl: lb.configure(text=t, fg=C[k]))
-
-            threading.Thread(target=_run_verify, daemon=True).start()
 
         # ── Row interaction helpers ────────────────────────────────────────────
 
@@ -230,6 +233,97 @@ class CobraLANs(tk.Tk):
             w.bind("<Button-1>", _toggle)
             w.bind("<Enter>",    _enter)
             w.bind("<Leave>",    _leave)
+            w.bind("<Button-3>", lambda e, g=game, lb=status_lbl: self._show_context_menu(e, g, lb))
+
+    # ── Right-click context menu ───────────────────────────────────────────────
+
+    def _show_context_menu(self, event: tk.Event, game: dict, status_lbl: tk.Label):
+        """Display the right-click context menu for a game row."""
+        menu = tk.Menu(self, tearoff=0,
+                       bg=C["surface2"], fg=C["text"], activebackground=C["row_hover"],
+                       activeforeground=C["cyan"], relief="flat", bd=0,
+                       font=FONT)
+        menu.add_command(
+            label="\u25b8  Check Game Files",
+            command=lambda g=game, lb=status_lbl: self._trigger_game_file_check(g, lb),
+        )
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
+    def _trigger_game_file_check(self, game: dict, status_lbl: tk.Label):
+        """Start the game-file check: launch a spinner then run checks in a background thread."""
+        _FRAMES = ["\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834",
+                   "\u2826", "\u2827", "\u2807", "\u280f"]
+        state = {"done": False, "msg": "checking\u2026", "fi": 0}
+
+        def _spin():
+            if state["done"]:
+                return
+            status_lbl.configure(
+                text=f"{_FRAMES[state['fi']]} {state['msg']}",
+                fg=C["text_dim"],
+            )
+            state["fi"] = (state["fi"] + 1) % len(_FRAMES)
+            self.after(120, _spin)
+
+        def _progress(msg: str) -> None:
+            state["msg"] = msg
+
+        _spin()
+        threading.Thread(
+            target=self._run_game_file_check,
+            args=(game, status_lbl, state, _progress),
+            daemon=True,
+        ).start()
+
+    def _run_game_file_check(self, game: dict, status_lbl: tk.Label, state: dict, progress_cb):
+        """Background thread: run all file checks, stop spinner, show result popup."""
+        report, colour_key, short = check_game_files(game, self._manifest, progress_cb)
+        state["done"] = True
+        self.after(0, lambda: status_lbl.configure(text=short, fg=C[colour_key]))
+        title = f"Check Game Files \u2013 {game.get('name', '')}"
+        self.after(0, lambda r=report, c=colour_key, t=title: self._show_check_popup(t, r, c))
+
+    def _show_check_popup(self, title: str, report: str, colour_key: str):
+        """Show a styled popup window with the check report."""
+        popup = tk.Toplevel(self)
+        popup.title(title)
+        popup.configure(bg=C["bg"])
+        popup.resizable(False, False)
+        popup.grab_set()
+
+        hdr_color = C["green"] if colour_key == "green" else C["red"]
+
+        tk.Label(popup, text=title, font=FONT_BOLD,
+                 bg=C["bg"], fg=hdr_color, pady=10).pack(fill="x", padx=20)
+
+        sep = tk.Frame(popup, bg=hdr_color, height=1)
+        sep.pack(fill="x", padx=20)
+
+        txt_frame = tk.Frame(popup, bg=C["surface"], padx=16, pady=12)
+        txt_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        txt = tk.Text(
+            txt_frame, font=FONT, bg=C["surface"], fg=C["text"],
+            relief="flat", bd=0, state="normal",
+            width=60, height=min(30, report.count("\n") + 3),
+            wrap="word",
+        )
+        txt.insert("1.0", report)
+        txt.configure(state="disabled")
+        txt.pack(fill="both", expand=True)
+
+        close_btn = tk.Button(
+            popup, text="Close", font=FONT_BOLD,
+            bg=C["btn_bg"], fg=C["btn_fg"], activebackground=C["btn_hov"],
+            relief="flat", bd=0, padx=20, pady=8, cursor="hand2",
+            command=popup.destroy,
+        )
+        close_btn.pack(pady=(0, 14))
+
+    # ── Bottom bar ─────────────────────────────────────────────────────────────
 
     def _build_bottom_bar(self):
         bar = tk.Frame(self, bg=C["bg"], padx=22, pady=14)
@@ -271,13 +365,9 @@ class CobraLANs(tk.Tk):
 
     def _toggle_all(self):
         state = self._check_all_var.get()
-        for i, v in enumerate(self.check_vars):
+        for v, stripe in zip(self.check_vars, self._stripe_widgets):
             v.set(state)
-            rows = self._row_container.winfo_children()
-            if i < len(rows):
-                children = rows[i].winfo_children()
-                if children:
-                    children[0].configure(bg=C["cyan"] if state else C["border"])
+            stripe.configure(bg=C["cyan"] if state else C["border"])
 
     def _sync_select_all(self):
         self._check_all_var.set(all(v.get() for v in self.check_vars))

@@ -3,14 +3,16 @@
 Cobra LANs – Manifest updater
 ==============================
 Scans the ``Installers/`` tree, finds the primary installer (.exe or .msi)
-for each game, reads its version, computes its CRC32 hash, then **fully
-regenerates** ``config/games.yaml``.
+for each game, reads its version, then **fully regenerates** two config files:
 
-Only the primary installer is recorded — the per-file ``files`` list is not
-used.  The CRC32 is stored as ``crc32`` on each entry so the app can do a
-fast single-file integrity check at startup.
+* ``config/games.yaml``  – game metadata (name, version, paths, flags).
+  CRC32 is **not** stored here; use manifest.yaml for integrity checks.
 
-Manual fields already present in the YAML
+* ``config/manifest.yaml`` – per-game file list with CRC32 hashes for
+  every file found under the game's installer directory.  Used by the app
+  to verify file integrity, presence, and version on demand.
+
+Manual fields already present in games.yaml
 (supports_player_name, requires_server_ip, prerequisites)
 are preserved; everything else is re-derived from the file system.
 
@@ -28,9 +30,10 @@ from pathlib import Path
 import yaml
 
 # ── Paths (project root is one level above this script) ───────────────────────
-ROOT_DIR  = Path(__file__).resolve().parent.parent
-INST_DIR  = ROOT_DIR / "Installers"
-YAML_PATH = ROOT_DIR / "config" / "games.yaml"
+ROOT_DIR      = Path(__file__).resolve().parent.parent
+INST_DIR      = ROOT_DIR / "Installers"
+YAML_PATH     = ROOT_DIR / "config" / "games.yaml"
+MANIFEST_PATH = ROOT_DIR / "config" / "manifest.yaml"
 
 # Fields that must be kept exactly as the user configured them in YAML.
 MANUAL_KEYS = (
@@ -184,14 +187,19 @@ def _find_primary_installer(subdir: Path) -> tuple[Path | None, str]:
     return primary, installer_type
 
 
-def scan_installers() -> list[dict]:
+def scan_installers() -> tuple[list[dict], dict[str, list[dict]]]:
     """
     Walk every subdirectory of ``Installers/`` and build installer entries.
 
-    Each entry has a ``type`` of ``"game"`` or ``"server"``, identifies the
-    primary installer via ``install_exe`` or ``install_msi``, records the
-    version, and stores a ``crc32`` hash of the primary installer file so the
-    app can perform a fast single-file integrity check at startup.
+    Returns a tuple of:
+    * ``games``    – list of game metadata dicts for ``games.yaml``
+    * ``manifest`` – dict mapping game name → list of
+      ``{"path": relative_path, "crc32": hash}`` for every file found
+      under that game's installer directory, for ``manifest.yaml``
+
+    Each game entry has a ``type`` of ``"game"`` or ``"server"``, identifies the
+    primary installer via ``install_exe`` or ``install_msi``, and records the
+    version.  CRC32 is NOT stored in the game entry – use manifest.yaml instead.
 
     A ``Server/`` subfolder (case-insensitive) is automatically detected and
     produces a separate server entry.
@@ -201,12 +209,13 @@ def scan_installers() -> list[dict]:
         sys.exit(1)
 
     existing   = load_existing_games()
-    games: list[dict] = []
+    games:    list[dict]             = []
+    manifest: dict[str, list[dict]] = {}
 
     game_dirs = sorted(d for d in INST_DIR.iterdir() if d.is_dir())
     if not game_dirs:
         print("[warn] No game directories found inside Installers/", file=sys.stderr)
-        return []
+        return [], {}
 
     for game_dir in game_dirs:
         dir_name      = game_dir.name
@@ -268,10 +277,6 @@ def scan_installers() -> list[dict]:
                 version = props.get("ProductVersion", "").strip()
             print(f"  Version        : {version or '(not found)'}")
 
-            print("  Computing CRC32 …")
-            crc = _crc32_file(primary_game)
-            print(f"  CRC32          : {crc}")
-
             existing_entry = _get_existing_entry(existing, dir_name)
             inst_key = "install_exe" if game_inst_type == "inno_setup" else "install_msi"
             game_base = (
@@ -288,7 +293,6 @@ def scan_installers() -> list[dict]:
             if version:
                 entry["version"] = version
             entry[inst_key] = primary_game.name
-            entry["crc32"]  = crc
             for k in MANUAL_KEYS:
                 if k in existing_entry:
                     entry[k] = existing_entry[k]
@@ -297,6 +301,20 @@ def scan_installers() -> list[dict]:
                 elif k == "supports_player_name":
                     entry[k] = False
             games.append(entry)
+
+            # ── Build manifest for game files ──────────────────────────────────
+            print("  Scanning all game files for manifest …")
+            game_files: list[dict] = []
+            scan_root = game_scan_target
+            for file_path in sorted(scan_root.rglob("*")):
+                if not file_path.is_file():
+                    continue
+                rel = file_path.relative_to(scan_root).as_posix()
+                print(f"    CRC32 {file_path.name} …")
+                crc = _crc32_file(file_path)
+                game_files.append({"path": rel, "crc32": crc})
+            manifest[dir_name] = game_files
+            print(f"  Manifest entries: {len(game_files)}")
 
         # ── Build server entry ─────────────────────────────────────────────────
         if primary_server is not None:
@@ -313,10 +331,6 @@ def scan_installers() -> list[dict]:
                 version = props.get("ProductVersion", "").strip()
             print(f"  Server version : {version or '(not found)'}")
 
-            print("  Computing server CRC32 …")
-            crc = _crc32_file(primary_server)
-            print(f"  Server CRC32   : {crc}")
-
             inst_key = "install_exe" if server_inst_type == "inno_setup" else "install_msi"
             server_entry: dict = {
                 "name":           server_name,
@@ -327,7 +341,6 @@ def scan_installers() -> list[dict]:
             if version:
                 server_entry["version"] = version
             server_entry[inst_key] = primary_server.name
-            server_entry["crc32"]  = crc
             for k in MANUAL_KEYS:
                 if k in existing_entry:
                     server_entry[k] = existing_entry[k]
@@ -337,13 +350,26 @@ def scan_installers() -> list[dict]:
                     server_entry[k] = False
             games.append(server_entry)
 
-    return games
+            # ── Build manifest for server files ────────────────────────────────
+            print("  Scanning all server files for manifest …")
+            server_files: list[dict] = []
+            for file_path in sorted(server_subdir.rglob("*")):
+                if not file_path.is_file():
+                    continue
+                rel = file_path.relative_to(server_subdir).as_posix()
+                print(f"    CRC32 {file_path.name} …")
+                crc = _crc32_file(file_path)
+                server_files.append({"path": rel, "crc32": crc})
+            manifest[server_name] = server_files
+            print(f"  Server manifest entries: {len(server_files)}")
+
+    return games, manifest
 
 
-# ── YAML writer ────────────────────────────────────────────────────────────────
+# ── YAML writers ──────────────────────────────────────────────────────────────
 
 def write_yaml(games: list[dict]) -> None:
-    """Serialise *games* back to ``config/games.yaml``."""
+    """Serialise *games* back to ``config/games.yaml`` (no CRC32 stored here)."""
     YAML_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(YAML_PATH, "w", encoding="utf-8") as fh:
         yaml.dump(
@@ -360,13 +386,52 @@ def write_yaml(games: list[dict]) -> None:
     )
 
 
+def write_manifest(manifest: dict[str, list[dict]]) -> None:
+    """Write per-game file CRC32 manifest to ``config/manifest.yaml``.
+
+    Structure::
+
+        games:
+          "Battlefield 3":
+            files:
+              - path: Battlefield 3.exe
+                crc32: 9420B04A
+              - path: Battlefield 3-1.bin
+                crc32: ABCDEF01
+          ...
+    """
+    MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
+    # Build serialisable structure: top-level key "games", then dict of name -> {files: [...]}
+    data: dict = {
+        "games": {
+            name: {"files": files}
+            for name, files in manifest.items()
+        }
+    }
+    with open(MANIFEST_PATH, "w", encoding="utf-8") as fh:
+        yaml.dump(
+            data,
+            fh,
+            allow_unicode=True,
+            default_flow_style=False,
+            sort_keys=False,
+            width=120,
+        )
+    total_files = sum(len(v) for v in manifest.values())
+    print(
+        f"[done] Wrote manifest for {len(manifest)} game(s), "
+        f"{total_files} file(s) to {MANIFEST_PATH.relative_to(ROOT_DIR)}"
+    )
+
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     print("Cobra LANs – Manifest Updater")
     print("=" * 50)
-    games = scan_installers()
+    games, manifest = scan_installers()
     if games:
         write_yaml(games)
+        write_manifest(manifest)
     else:
         print("[warn] Nothing written – no games found.", file=sys.stderr)

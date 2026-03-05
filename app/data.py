@@ -1,5 +1,6 @@
 """Cobra LANs – data loading and file-system utilities."""
 
+import subprocess
 import sys
 import zlib
 from pathlib import Path
@@ -7,7 +8,7 @@ from tkinter import messagebox
 
 import yaml
 
-from .config import BASE_DIR, FILTER_PATH, YAML_PATH
+from .config import BASE_DIR, FILTER_PATH, MANIFEST_PATH, YAML_PATH
 
 
 def load_games() -> list[dict]:
@@ -42,6 +43,21 @@ def load_games() -> list[dict]:
     return games
 
 
+def load_manifest() -> dict[str, list[dict]]:
+    """Load ``config/manifest.yaml`` and return a dict mapping game name to
+    its list of ``{"path": ..., "crc32": ...}`` file records.
+
+    Returns an empty dict if the manifest does not exist.
+    """
+    if not MANIFEST_PATH.exists():
+        return {}
+    with open(MANIFEST_PATH, "r", encoding="utf-8") as fh:
+        data = yaml.safe_load(fh) or {}
+    raw = data.get("games", {})
+    # Each value is {"files": [...]}
+    return {name: entry.get("files", []) for name, entry in raw.items()}
+
+
 def _base_path(game: dict) -> Path:
     """Return the absolute base installer directory for *game*."""
     bp = game.get("base_path", "")
@@ -73,29 +89,174 @@ def _crc32_file(path: Path) -> str:
     return f"{crc & 0xFFFFFFFF:08X}"
 
 
-def verify_installer_crc(game: dict) -> tuple[str, str]:
+def _read_installer_version(installer: Path, installer_type: str) -> str:
+    """Read the version string from the primary installer file.
+
+    Uses PowerShell to query ``ProductVersion`` from the EXE version resource
+    (Inno Setup) or the MSI Property table.  Returns an empty string on failure.
     """
-    Check the primary installer file using a CRC32 hash.
+    if installer_type == "inno_setup":
+        ps = (
+            "$ErrorActionPreference='Stop';"
+            f"$v=(Get-Item '{installer}').VersionInfo.ProductVersion;"
+            "if($v){Write-Output $v}"
+        )
+    else:
+        ps = (
+            "$ErrorActionPreference='Stop';"
+            "$i=New-Object -ComObject WindowsInstaller.Installer;"
+            f"$d=$i.OpenDatabase([string]'{installer}',0);"
+            "$q=$d.OpenView(\"SELECT Value FROM Property WHERE Property='ProductVersion'\");"
+            "$q.Execute();"
+            "$rec=$q.Fetch();"
+            "if($rec -ne $null){Write-Output $rec.StringData(1)}"
+        )
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
 
-    Returns a ``(label, colour_key)`` pair for display in the UI where
-    ``colour_key`` is one of ``"green"``, ``"red"``, ``"yellow"``, ``"text_dim"``.
+
+# ── Game file checks (used by right-click "Check Game Files") ──────────────────
+
+class FileCheckResult:
+    """Holds pass/fail detail for a single check category."""
+
+    def __init__(self, name: str):
+        self.name    = name
+        self.passed  = True
+        self.details: list[str] = []
+
+    def fail(self, msg: str) -> None:
+        self.passed = False
+        self.details.append(msg)
+
+    def info(self, msg: str) -> None:
+        self.details.append(msg)
+
+
+def check_game_files(
+    game: dict,
+    manifest: dict[str, list[dict]],
+    progress_cb=None,
+) -> tuple[str, str, str]:
+    """Run all three game-file checks and return ``(report, colour_key, short_label)``.
+
+    Checks performed:
+    1. All files listed in manifest.yaml exist on disk.
+    2. CRC32 of every file matches the manifest.
+    3. The primary installer's version matches ``games.yaml``.
+
+    *progress_cb*, if provided, is called with a short string at each step so
+    the UI can display what is currently being checked.
+    *colour_key* is one of ``"green"`` or ``"red"``.
+    *short_label* is a concise pass/fail string for the row status column.
     """
-    installer    = _primary_installer_path(game)
-    expected_crc = game.get("crc32", "").strip().upper()
+    def _progress(msg: str) -> None:
+        if progress_cb:
+            progress_cb(msg)
 
-    if installer is None:
-        return "\u2014 no installer", "text_dim"
+    name      = game.get("name", "")
+    base      = _base_path(game)
+    file_list = manifest.get(name, [])
 
-    if not installer.exists():
-        return "\u2717 missing", "red"
+    exist_check   = FileCheckResult("Files Present")
+    crc_check     = FileCheckResult("CRC32 Integrity")
+    version_check = FileCheckResult("Version Match")
 
-    if not expected_crc:
-        return "? no CRC", "text_dim"
+    # ── Check 1 & 2: existence and CRC ────────────────────────────────────────
+    if not file_list:
+        exist_check.fail("No manifest entry found – run update_manifest.py first.")
+        crc_check.fail("Skipped (no manifest).")
+    else:
+        _progress("Checking files\u2026")
+        for rec in file_list:
+            rel_path   = rec.get("path", "")
+            expected   = (rec.get("crc32") or "").strip().upper()
+            full_path  = base / rel_path
 
-    actual_crc = _crc32_file(installer)
-    if actual_crc == expected_crc:
-        return "\u2713 OK", "green"
-    return "\u2717 mismatch", "yellow"
+            if not full_path.exists():
+                exist_check.fail(f"Missing: {rel_path}")
+                crc_check.fail(f"Cannot check (missing): {rel_path}")
+            else:
+                exist_check.info(f"OK: {rel_path}")
+                if expected:
+                    _progress(f"CRC: {Path(rel_path).name}")
+                    actual = _crc32_file(full_path)
+                    if actual == expected:
+                        crc_check.info(f"OK: {rel_path}")
+                    else:
+                        crc_check.fail(f"Mismatch: {rel_path}  (expected {expected}, got {actual})")
+                else:
+                    crc_check.info(f"No CRC recorded: {rel_path}")
+
+    # ── Check 3: version ──────────────────────────────────────────────────────
+    _progress("Checking version\u2026")
+    expected_version = str(game.get("version", "")).strip()
+    installer_path   = _primary_installer_path(game)
+    installer_type   = game.get("installer_type", "inno_setup")
+
+    if not expected_version:
+        version_check.info("No version recorded in games.yaml – skipped.")
+    elif installer_path is None:
+        version_check.fail("No installer path configured.")
+    elif not installer_path.exists():
+        version_check.fail(f"Installer not found: {installer_path.name}")
+    else:
+        actual_version = _read_installer_version(installer_path, installer_type)
+        if not actual_version:
+            version_check.fail("Could not read version from installer file.")
+        elif actual_version.strip() == expected_version:
+            version_check.info(f"Version matches: {actual_version}")
+        else:
+            version_check.fail(
+                f"Version mismatch – expected {expected_version!r}, "
+                f"got {actual_version!r}"
+            )
+
+    # ── Build report ──────────────────────────────────────────────────────────
+    all_checks = [exist_check, crc_check, version_check]
+    lines: list[str] = []
+    overall_ok = True
+    for chk in all_checks:
+        icon = "\u2713" if chk.passed else "\u2717"
+        lines.append(f"{icon} {chk.name}")
+        if not chk.passed:
+            overall_ok = False
+            for d in chk.details:
+                if not d.startswith("OK:"):
+                    lines.append(f"    {d}")
+        else:
+            for d in chk.details:
+                if d.startswith("No "):
+                    lines.append(f"    {d}")
+
+    report = "\n".join(lines)
+    colour_key = "green" if overall_ok else "red"
+
+    # ── Build short label for the row status column ───────────────────────────
+    failures = [c for c in all_checks if not c.passed]
+    if not failures:
+        short_label = "\u2713 OK"
+    elif len(failures) == 1:
+        _short_map = {
+            "Files Present":   "\u2717 Missing",
+            "CRC32 Integrity": "\u2717 CRC",
+            "Version Match":   "\u2717 Version",
+        }
+        short_label = _short_map.get(failures[0].name, "\u2717 Failed")
+    else:
+        short_label = "\u2717 Issues"
+
+    return report, colour_key, short_label
 
 
 def folder_size_str(path: Path) -> str:
