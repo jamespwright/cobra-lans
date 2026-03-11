@@ -1,33 +1,17 @@
 games:
-- name: Battlefield 3
+- name: Age of Empires II
   type: game
-  installer_type: inno_setup
-  base_path: Installers/Battlefield 3/Game
+  installer_type: msi
+  base_path: Installers/Age of Empires II/game
   version: '1.0'
-  install_exe: Battlefield 3.exe
+  install_msi: Age of Empires II.msi
   supports_player_name: false
   prerequisites: []
-- name: Battlefield 4
+- name: Duck Game
   type: game
-  installer_type: inno_setup
-  base_path: Installers/Battlefield 4/Game
-  version: '1.0'
-  install_exe: Battlefield 4.exe
+  installer_type: msi
+  base_path: Installers/Duck Game/game
+  version: 1.00.0000
+  install_msi: Duck Game.msi
   supports_player_name: false
-  prerequisites: []
-- name: Counter Strike 2
-  type: game
-  installer_type: inno_setup
-  base_path: Installers/Counter Strike 2/game
-  version: '1.0'
-  install_exe: Counter Strike 2.exe
-  supports_player_name: true
-  prerequisites: []
-- name: Wreckfest
-  type: game
-  installer_type: inno_setup
-  base_path: Installers/Wreckfest/game
-  version: '1.0'
-  install_exe: Wreckfest.exe
-  supports_player_name: true
   prerequisites: []
