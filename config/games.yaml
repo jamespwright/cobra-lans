@@ -1,3 +1,4 @@
+download_url: ""
 games:
 - name: Age of Empires II
   type: game
@@ -7,11 +8,11 @@ games:
   install_msi: Age of Empires II.msi
   supports_player_name: false
   prerequisites: []
-- name: Duck Game
+- name: Battlefield 1942
   type: game
   installer_type: msi
-  base_path: Installers/Duck Game/game
-  version: 1.00.0000
-  install_msi: Duck Game.msi
+  base_path: Installers/Battlefield 1942/game
+  version: '1.0'
+  install_msi: Battlefield 1942.msi
   supports_player_name: false
   prerequisites: []

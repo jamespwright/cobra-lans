@@ -6,11 +6,12 @@ from tkinter import filedialog, messagebox, simpledialog
 
 from .config import C, FONT, FONT_BOLD, FONT_HEAD
 from .data import (
-    check_game_files,
     folder_size_str,
     get_installer_folder,
+    load_download_url,
     load_games,
-    load_manifest,
+    missing_installer_files,
+    save_download_url,
 )
 from .installer import run_installs
 from .widgets import CyberButton, neon_box, neon_line
@@ -23,14 +24,14 @@ class CobraLANs(tk.Tk):
         self.title("Cobra LANs")
         self.configure(bg=C["bg"])
         self.geometry("1500x1080")
-        self.minsize(1060, 580)
+        self.minsize(1280, 580)
         #self.state("zoomed")
 
         self.games: list[dict]                   = load_games()
-        self._manifest: dict[str, list[dict]]    = load_manifest()
         self._visible_games: list[dict]          = []
         self.check_vars: list[tk.BooleanVar]     = []
         self._stripe_widgets: list[tk.Frame]     = []
+        self._status_vars: list[tk.StringVar]    = []
         self.install_type                        = tk.StringVar(value="game")
         self.player_name                         = tk.StringVar()
         self._check_all_var                      = tk.BooleanVar(value=False)
@@ -102,13 +103,11 @@ class CobraLANs(tk.Tk):
         # ── expandable title ──
         tk.Label(col_row, text="GAME TITLE", font=FONT_BOLD,
                  bg=C["surface"], fg=C["text_dim"]).pack(side="left", padx=(8, 0))
-        # ── right columns – pack STATUS first so it sits at the far right ──
-        tk.Label(col_row, text="STATUS",    font=FONT_BOLD,
-             bg=C["surface"], fg=C["text_dim"], width=32, anchor="e").pack(side="right", padx=(0, 4))
+        # ── right columns ──
         tk.Label(col_row, text="DISK SIZE", font=FONT_BOLD,
              bg=C["surface"], fg=C["text_dim"], width=10, anchor="e").pack(side="right", padx=(0, 12))
-        tk.Label(col_row, text="VERSION",   font=FONT_BOLD,
-             bg=C["surface"], fg=C["text_dim"], width=9,  anchor="e").pack(side="right", padx=(0, 4))
+        tk.Label(col_row, text="STATUS", font=FONT_BOLD,
+             bg=C["surface"], fg=C["text_dim"], width=30, anchor="e").pack(side="right", padx=(0, 8))
 
         neon_line(container, C["border_hi"])
 
@@ -143,6 +142,7 @@ class CobraLANs(tk.Tk):
             child.destroy()
         self.check_vars.clear()
         self._stripe_widgets.clear()
+        self._status_vars.clear()
         self._check_all_var.set(False)
 
         mode = self.install_type.get()
@@ -187,17 +187,13 @@ class CobraLANs(tk.Tk):
         size_var = tk.StringVar(value="---")
         size_lbl = tk.Label(frame, textvariable=size_var, font=FONT,
                      fg=C["accent_dim"], bg=row_bg, width=10, anchor="e")
-
-        status_lbl = tk.Label(frame, text="—", font=FONT,
-                       fg=C["text_dim"], bg=row_bg, width=32, anchor="e")
-
-        version_lbl = tk.Label(frame, text=game.get("version", "—"), font=FONT,
-                    fg=C["text_dim"], bg=row_bg, width=9, anchor="e")
-
-        # Pack right-side columns: STATUS first (far right), then DISK SIZE, then VERSION
-        status_lbl.pack(side="right", padx=(0, 4))
         size_lbl.pack(side="right", padx=(0, 12))
-        version_lbl.pack(side="right", padx=(0, 4))
+
+        status_var = tk.StringVar(value="")
+        self._status_vars.append(status_var)
+        status_lbl = tk.Label(frame, textvariable=status_var, font=FONT,
+                     fg=C["yellow"], bg=row_bg, width=30, anchor="e")
+        status_lbl.pack(side="right", padx=(0, 8))
 
         threading.Thread(
             target=lambda v=size_var, g=game: v.set(
@@ -229,99 +225,10 @@ class CobraLANs(tk.Tk):
             _set_row_bg(r, bg)
             s.configure(bg=C["cyan"] if v.get() else C["border"])
 
-        for w in (frame, name_lbl, version_lbl, status_lbl, size_lbl):
+        for w in (frame, name_lbl, size_lbl, status_lbl):
             w.bind("<Button-1>", _toggle)
             w.bind("<Enter>",    _enter)
             w.bind("<Leave>",    _leave)
-            w.bind("<Button-3>", lambda e, g=game, lb=status_lbl: self._show_context_menu(e, g, lb))
-
-    # ── Right-click context menu ───────────────────────────────────────────────
-
-    def _show_context_menu(self, event: tk.Event, game: dict, status_lbl: tk.Label):
-        """Display the right-click context menu for a game row."""
-        menu = tk.Menu(self, tearoff=0,
-                       bg=C["surface2"], fg=C["text"], activebackground=C["row_hover"],
-                       activeforeground=C["cyan"], relief="flat", bd=0,
-                       font=FONT)
-        menu.add_command(
-            label="\u25b8  Check Game Files",
-            command=lambda g=game, lb=status_lbl: self._trigger_game_file_check(g, lb),
-        )
-        try:
-            menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            menu.grab_release()
-
-    def _trigger_game_file_check(self, game: dict, status_lbl: tk.Label):
-        """Start the game-file check: launch a spinner then run checks in a background thread."""
-        _FRAMES = ["\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834",
-                   "\u2826", "\u2827", "\u2807", "\u280f"]
-        state = {"done": False, "msg": "checking\u2026", "fi": 0}
-
-        def _spin():
-            if state["done"]:
-                return
-            status_lbl.configure(
-                text=f"{_FRAMES[state['fi']]} {state['msg']}",
-                fg=C["text_dim"],
-            )
-            state["fi"] = (state["fi"] + 1) % len(_FRAMES)
-            self.after(120, _spin)
-
-        def _progress(msg: str) -> None:
-            state["msg"] = msg
-
-        _spin()
-        threading.Thread(
-            target=self._run_game_file_check,
-            args=(game, status_lbl, state, _progress),
-            daemon=True,
-        ).start()
-
-    def _run_game_file_check(self, game: dict, status_lbl: tk.Label, state: dict, progress_cb):
-        """Background thread: run all file checks, stop spinner, show result popup."""
-        report, colour_key, short = check_game_files(game, self._manifest, progress_cb)
-        state["done"] = True
-        self.after(0, lambda: status_lbl.configure(text=short, fg=C[colour_key]))
-        title = f"Check Game Files \u2013 {game.get('name', '')}"
-        self.after(0, lambda r=report, c=colour_key, t=title: self._show_check_popup(t, r, c))
-
-    def _show_check_popup(self, title: str, report: str, colour_key: str):
-        """Show a styled popup window with the check report."""
-        popup = tk.Toplevel(self)
-        popup.title(title)
-        popup.configure(bg=C["bg"])
-        popup.resizable(False, False)
-        popup.grab_set()
-
-        hdr_color = C["green"] if colour_key == "green" else C["red"]
-
-        tk.Label(popup, text=title, font=FONT_BOLD,
-                 bg=C["bg"], fg=hdr_color, pady=10).pack(fill="x", padx=20)
-
-        sep = tk.Frame(popup, bg=hdr_color, height=1)
-        sep.pack(fill="x", padx=20)
-
-        txt_frame = tk.Frame(popup, bg=C["surface"], padx=16, pady=12)
-        txt_frame.pack(fill="both", expand=True, padx=20, pady=10)
-
-        txt = tk.Text(
-            txt_frame, font=FONT, bg=C["surface"], fg=C["text"],
-            relief="flat", bd=0, state="normal",
-            width=60, height=min(30, report.count("\n") + 3),
-            wrap="word",
-        )
-        txt.insert("1.0", report)
-        txt.configure(state="disabled")
-        txt.pack(fill="both", expand=True)
-
-        close_btn = tk.Button(
-            popup, text="Close", font=FONT_BOLD,
-            bg=C["btn_bg"], fg=C["btn_fg"], activebackground=C["btn_hov"],
-            relief="flat", bd=0, padx=20, pady=8, cursor="hand2",
-            command=popup.destroy,
-        )
-        close_btn.pack(pady=(0, 14))
 
     # ── Bottom bar ─────────────────────────────────────────────────────────────
 
@@ -407,10 +314,32 @@ class CobraLANs(tk.Tk):
                 return
             server_ip_parts = parts
 
+        download_url = load_download_url()
+
+        # ── Pre-flight: ensure installer files exist or a download URL is set ──
+        missing = missing_installer_files(selected)
+        if missing and not download_url:
+            url = simpledialog.askstring(
+                "Download URL Required",
+                "The following game installer(s) were not found locally:\n"
+                + "\n".join(f"  • {n}" for n in missing)
+                + "\n\nEnter the OneDrive share URL to download them:",
+                parent=self,
+            )
+            if not url or not url.strip():
+                messagebox.showwarning(
+                    "Download URL Required",
+                    "Installation cancelled. A download URL is needed to fetch the missing files.",
+                )
+                return
+            url = url.strip()
+            save_download_url(url)
+            download_url = url
+
         self._set_busy(True)
         threading.Thread(
             target=self._run_in_thread,
-            args=(selected, install_dir, player, server_ip_parts),
+            args=(selected, install_dir, player, server_ip_parts, download_url),
             daemon=True,
         ).start()
 
@@ -420,8 +349,15 @@ class CobraLANs(tk.Tk):
         install_dir:       str,
         player:            str,
         server_ip_parts:   list[str] | None,
+        download_url:      str | None = None,
     ):
-        errors = run_installs(selected, install_dir, player, server_ip_parts)
+        def _status_cb(game_name: str, msg: str) -> None:
+            self.after(0, self._update_game_status, game_name, msg)
+
+        errors = run_installs(
+            selected, install_dir, player, server_ip_parts,
+            download_url=download_url, status_callback=_status_cb,
+        )
         self.after(0, self._set_busy, False)
         if errors:
             self.after(0, lambda: messagebox.showerror(
@@ -430,6 +366,13 @@ class CobraLANs(tk.Tk):
             ))
         else:
             self.after(0, lambda: messagebox.showinfo("Done", "All selected games installed successfully."))
+
+    def _update_game_status(self, game_name: str, msg: str) -> None:
+        """Set the status text for the row matching *game_name*."""
+        for i, game in enumerate(self._visible_games):
+            if game["name"] == game_name and i < len(self._status_vars):
+                self._status_vars[i].set(msg)
+                break
 
     def _set_busy(self, busy: bool):
         """Disable/enable the install button to prevent double-clicks."""

@@ -12,30 +12,6 @@ else:
     BASE_DIR = Path(__file__).parent.parent   # project root (one level above app/)
 
 
-def _locate_yaml(filename: str) -> Path:
-    """Return the best candidate path for a config YAML file.
-
-    Search order:
-      1. Current working directory /config/<filename>
-      2. Directory next to the executable /config/<filename>
-      3. Project source ``config/<filename>`` (fallback when running from source)
-      4. Default: directory next to the executable (non-existing path)
-    """
-    candidates = []
-    candidates.append(Path.cwd() / "config" / filename)
-    try:
-        exe_dir = Path(sys.executable).resolve().parent
-    except Exception:
-        exe_dir = BASE_DIR
-    candidates.append(exe_dir / "config" / filename)
-    candidates.append(Path(__file__).parent.parent / "config" / filename)
-
-    for p in candidates:
-        if p.exists():
-            return p
-    return candidates[1]
-
-
 def _locate_games_yaml() -> Path:
     """Return the best candidate path for `config/games.yaml`.
 
@@ -65,7 +41,6 @@ def _locate_games_yaml() -> Path:
 
 
 YAML_PATH     = _locate_games_yaml()
-MANIFEST_PATH = _locate_yaml("manifest.yaml")
 
 
 _FILTER_YAML_URL = (

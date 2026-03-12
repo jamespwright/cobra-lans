@@ -3,3 +3,5 @@ pillow>=10.0
 pyinstaller>=6.0
 tqdm>=4.0
 numpy>=1.24
+aiohttp>=3.9
+yarl>=1.9

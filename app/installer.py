@@ -1,9 +1,13 @@
-"""Cobra LANs – MSI installation logic (no UI dependencies)."""
+"""Cobra LANs – download & install logic (no UI dependencies)."""
 
 import os
 import subprocess
+from typing import Callable
 
 from .config import BASE_DIR
+from .downloader import download_game
+
+StatusCallback = Callable[[str, str], None]
 
 
 def run_installs(
@@ -11,24 +15,42 @@ def run_installs(
     install_dir: str,
     player: str,
     server_ip_parts: list[str] | None,
+    download_url: str | None = None,
+    status_callback: StatusCallback | None = None,
 ) -> list[str]:
-    """Run MSI installers for each game; returns a list of error messages (empty = all OK)."""
+    """Download (when *download_url* is set) and install each game.
+
+    Returns a list of error messages (empty = all OK).
+    """
     errors: list[str] = []
 
     for game in games:
+        name = game["name"]
+
+        def _notify(msg: str, _name: str = name) -> None:
+            if status_callback:
+                status_callback(_name, msg)
+
         try:
-            # Resolve the game's base installer directory.
-            # New format:  base_path + relative msi_rel
-            # Legacy fallback: base_path absent, msi_rel is already root-relative
+            # ── Download phase ─────────────────────────────────────────
+            if download_url and game.get("base_path"):
+                dl_errors = download_game(download_url, game, _notify)
+                if dl_errors:
+                    errors.extend(f"{name}: {e}" for e in dl_errors)
+                    continue
+
+            # ── Install phase ──────────────────────────────────────────
+            _notify("Installing\u2026")
+
             base_path = BASE_DIR / game["base_path"] if game.get("base_path") else BASE_DIR
 
-            # 1. Prerequisites (paths remain root-relative as they are manual)
+            # Prerequisites (paths remain root-relative as they are manual)
             for prereq in game.get("prerequisites", []):
                 prereq_path = BASE_DIR / prereq["path"]
                 args = prereq.get("args", "")
                 subprocess.run(f'"{prereq_path}" {args}'.strip(), shell=True, check=False)
 
-            # 2. Dispatch based on installer type
+            # Dispatch based on installer type
             installer_type = game.get("installer_type", "msi")
             target_dir = os.path.normpath(os.path.join(install_dir, game["name"]))
 
@@ -54,7 +76,7 @@ def run_installs(
                 subprocess.run(" ".join(cmd), shell=True, check=True)
 
             else:
-                # 3. Build msiexec command
+                # Build msiexec command
                 msi_rel = game.get("install_msi", "")
                 if not msi_rel:
                     continue
@@ -76,9 +98,13 @@ def run_installs(
                 cmd.append("/qb")
                 subprocess.run(" ".join(cmd), shell=True, check=True)
 
+            _notify("Complete")
+
         except subprocess.CalledProcessError as exc:
-            errors.append(f'{game["name"]}: installer exited with code {exc.returncode}')
+            errors.append(f'{name}: installer exited with code {exc.returncode}')
+            _notify(f"Error (exit {exc.returncode})")
         except Exception as exc:  # noqa: BLE001
-            errors.append(f'{game["name"]}: {exc}')
+            errors.append(f'{name}: {exc}')
+            _notify(f"Error: {exc}")
 
     return errors
