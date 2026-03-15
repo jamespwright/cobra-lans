@@ -5,7 +5,7 @@ games:
   base_path: Installers/Age of Empires II/game
   version: '1.0'
   install_msi: Age of Empires II.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Battlefield 1942
   type: game
@@ -13,7 +13,7 @@ games:
   base_path: Installers/Battlefield 1942/game
   version: '1.0'
   install_msi: Battlefield 1942.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Battlefield 3
   type: game
@@ -21,7 +21,7 @@ games:
   base_path: Installers/Battlefield 3/Game
   version: '1.0'
   install_exe: Battlefield 3.exe
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Battlefield 4
   type: game
@@ -29,7 +29,7 @@ games:
   base_path: Installers/Battlefield 4/Game
   version: '1.0'
   install_exe: Battlefield 4.exe
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Battlefield Bad Company 2
   type: game
@@ -37,7 +37,8 @@ games:
   base_path: Installers/Battlefield Bad Company 2/Game
   version: 1.00.0000
   install_msi: Battlefield Bad Company 2.msi
-  supports_player_name: false
+  supports_player_name: true
+  requires_server_ip: true
   prerequisites: []
 - name: Battlefield Bad Company 2 Server
   type: server
@@ -45,7 +46,7 @@ games:
   base_path: Installers/Battlefield Bad Company 2/Server
   version: 1.00.0000
   install_msi: Battlefield Bad Company 2 Server.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: BF-Portable
   type: server
@@ -53,7 +54,7 @@ games:
   base_path: Installers/BF-Portable/server
   version: '1.0'
   install_exe: BF-Portable.exe
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Call Of Duty
   type: game
@@ -61,7 +62,7 @@ games:
   base_path: Installers/Call Of Duty/Game
   version: 1.00.0000
   install_msi: Call Of Duty.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Call Of Duty 4
   type: game
@@ -69,7 +70,7 @@ games:
   base_path: Installers/Call Of Duty 4/Game
   version: 1.00.0000
   install_msi: Call Of Duty 4.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Chivalry Medieval Warfare
   type: game
@@ -77,7 +78,7 @@ games:
   base_path: Installers/Chivalry Medieval Warfare/Game
   version: 1.00.0000
   install_msi: Chivalry Medieval Warfare.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Chivalry Medieval Warfare Server
   type: server
@@ -85,7 +86,7 @@ games:
   base_path: Installers/Chivalry Medieval Warfare/Server
   version: 1.00.0000
   install_msi: Chivalry Medieval Warfare Server.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Counter Strike 2
   type: game
@@ -93,7 +94,7 @@ games:
   base_path: Installers/Counter Strike 2/game
   version: '1.0'
   install_exe: Counter Strike 2.exe
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Counter-Strike Global Offensive
   type: game
@@ -101,7 +102,7 @@ games:
   base_path: Installers/Counter-Strike Global Offensive/Game
   version: 1.00.0000
   install_msi: Counter-Strike Global Offensive.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Duck Game
   type: game
@@ -109,7 +110,7 @@ games:
   base_path: Installers/Duck Game/game
   version: 1.00.0000
   install_msi: Duck Game.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Flatout 2
   type: game
@@ -117,7 +118,7 @@ games:
   base_path: Installers/Flatout 2/Game
   version: 1.00.0000
   install_msi: Flatout 2.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Garrys Mod
   type: game
@@ -125,7 +126,7 @@ games:
   base_path: Installers/Garrys Mod/Game
   version: 1.00.0000
   install_msi: Garrys Mod.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Grand Theft Auto IV
   type: game
@@ -133,7 +134,7 @@ games:
   base_path: Installers/Grand Theft Auto IV/game
   version: 1.00.0000
   install_msi: Grand Theft Auto IV.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Killing Floor
   type: game
@@ -141,7 +142,7 @@ games:
   base_path: Installers/Killing Floor/Game
   version: 1.00.0000
   install_msi: Killing Floor.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Left 4 Dead 2
   type: game
@@ -149,7 +150,7 @@ games:
   base_path: Installers/Left 4 Dead 2/Game
   version: 1.00.0000
   install_msi: Left 4 Dead 2.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Need for Speed SHIFT
   type: game
@@ -157,12 +158,7 @@ games:
   base_path: Installers/Need for Speed SHIFT/Game
   version: 1.00.0000
   install_msi: Need for Speed SHIFT.msi
-  supports_player_name: false
-  prerequisites: []
-- name: Prerequisites
-  type: game
-  base_path: Installers/Prerequisites
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Red Alert 3
   type: game
@@ -170,7 +166,7 @@ games:
   base_path: Installers/Red Alert 3/Game
   version: 1.00.0000
   install_msi: Red Alert 3.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: StarCraft II
   type: game
@@ -178,7 +174,7 @@ games:
   base_path: Installers/StarCraft II/game
   version: 1.00.0000
   install_msi: StarCraft II.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Team Fortress 2
   type: game
@@ -186,7 +182,7 @@ games:
   base_path: Installers/Team Fortress 2/Game
   version: 1.00.0000
   install_msi: Team Fortress 2.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Tom Clancys Rainbow Six Siege
   type: game
@@ -194,7 +190,7 @@ games:
   base_path: Installers/Tom Clancys Rainbow Six Siege/game
   version: '1.0'
   install_msi: Tom Clancys Rainbow Six Siege.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Unreal Tournament 3
   type: game
@@ -202,7 +198,7 @@ games:
   base_path: Installers/Unreal Tournament 3/Game
   version: 1.00.0000
   install_msi: Unreal Tournament 3.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Warcraft III
   type: game
@@ -210,7 +206,7 @@ games:
   base_path: Installers/Warcraft III/Game
   version: 1.00.0000
   install_msi: Warcraft III.msi
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
 - name: Wreckfest
   type: game
@@ -218,5 +214,5 @@ games:
   base_path: Installers/Wreckfest/game
   version: '1.0'
   install_exe: Wreckfest.exe
-  supports_player_name: false
+  supports_player_name: true
   prerequisites: []
