@@ -1,9 +1,20 @@
 # filter.yaml – optional allow-list of games to display.
 # Only the games named here will appear in the launcher.
-# Set sync_from_github to true to automatically update this list from the GitHub repository or set it to false to manage the list manually.
-# Set enabled to true to enable the filter or false to disable it and show all games.
-
-enabled: false
-sync_from_github: true
-games:
-- Battlefield 4
+filters:
+- name: Battlefield
+  games:
+  - Battlefield 4
+  - Battlefield Bad Company 2
+  - Battlefield 3
+- name: Cobra LANs Games 25-04-2026
+  games:
+  - Call Of Duty 4
+  - Chivalry Medieval Warfare
+  - Counter Strike 2
+  - Battlefield 4
+  - Battlefield Bad Company 2
+  - Battlefield 3
+  - Duck Game
+  - Tom Clancys Rainbow Six Siege
+  - Wreckfest
+  - Age of Empires II
