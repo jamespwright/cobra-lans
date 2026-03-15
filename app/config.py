@@ -90,19 +90,9 @@ def _locate_filter_yaml() -> Path | None:
         Path(__file__).parent.parent / "config" / "filter.yaml",
     ]
 
-    # Check whether the local copy opts out of GitHub sync
-    sync_enabled = True
-    for p in candidates:
-        if p.exists():
-            try:
-                with open(p, "r", encoding="utf-8") as _fh:
-                    _data = _yaml.safe_load(_fh) or {}
-                sync_enabled = _data.get("sync_from_github", True)
-            except Exception:
-                pass
-            break
-
-    if sync_enabled:
+    # Check whether GitHub sync is enabled in user settings
+    from . import usersettings as _us  # local import avoids circular dependency at module level
+    if _us.sync_enabled:
         save_to = YAML_PATH.parent / "filter.yaml"
         if _download_filter_yaml(save_to):
             return save_to

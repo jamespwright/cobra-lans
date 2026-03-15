@@ -7,6 +7,7 @@ from tkinter import messagebox
 import yaml
 
 from .config import BASE_DIR, FILTER_PATH, YAML_PATH
+from . import usersettings
 
 
 def load_games() -> list[dict]:
@@ -30,13 +31,12 @@ def load_games() -> list[dict]:
     games = data.get("games", [])
 
     # Apply optional allow-list filter
-    if FILTER_PATH is not None:
+    if FILTER_PATH is not None and usersettings.filter_enabled:
         with open(FILTER_PATH, "r", encoding="utf-8") as fh:
             filter_data = yaml.safe_load(fh) or {}
-        if filter_data.get("enabled", True):
-            allowed = {str(n) for n in (filter_data.get("games") or [])}
-            if allowed:
-                games = [g for g in games if g.get("name") in allowed]
+        allowed = {str(n) for n in (filter_data.get("games") or [])}
+        if allowed:
+            games = [g for g in games if g.get("name") in allowed]
 
     return games
 
@@ -68,25 +68,6 @@ def folder_size_str(path: Path) -> str:
             return f"{total:.1f} {unit}"
         total /= 1024.0
     return f"{total:.1f} TB"
-
-
-def load_download_url() -> str | None:
-    """Return the ``download_url`` value from games.yaml, or *None* if unset."""
-    if not YAML_PATH.exists():
-        return None
-    with open(YAML_PATH, "r", encoding="utf-8") as fh:
-        data = yaml.safe_load(fh) or {}
-    url = data.get("download_url", "")
-    return url if url else None
-
-
-def save_download_url(url: str) -> None:
-    """Persist *url* as ``download_url`` in games.yaml."""
-    with open(YAML_PATH, "r", encoding="utf-8") as fh:
-        data = yaml.safe_load(fh) or {}
-    data["download_url"] = url
-    with open(YAML_PATH, "w", encoding="utf-8") as fh:
-        yaml.dump(data, fh, allow_unicode=True, sort_keys=False)
 
 
 def missing_installer_files(games: list[dict]) -> list[str]:

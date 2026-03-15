@@ -8,11 +8,10 @@ from .config import C, FONT, FONT_BOLD, FONT_HEAD
 from .data import (
     folder_size_str,
     get_installer_folder,
-    load_download_url,
     load_games,
     missing_installer_files,
-    save_download_url,
 )
+from . import usersettings
 from .installer import run_installs
 from .widgets import CyberButton, neon_box, neon_line
 
@@ -314,11 +313,11 @@ class CobraLANs(tk.Tk):
                 return
             server_ip_parts = parts
 
-        download_url = load_download_url()
+        download_url = None if usersettings.disable_downloads else usersettings.download_url
 
         # ── Pre-flight: ensure installer files exist or a download URL is set ──
         missing = missing_installer_files(selected)
-        if missing and not download_url:
+        if missing and not download_url and not usersettings.disable_downloads:
             url = simpledialog.askstring(
                 "Download URL Required",
                 "The following game installer(s) were not found locally:\n"
@@ -333,7 +332,7 @@ class CobraLANs(tk.Tk):
                 )
                 return
             url = url.strip()
-            save_download_url(url)
+            usersettings.save(download_url=url)
             download_url = url
 
         self._set_busy(True)
