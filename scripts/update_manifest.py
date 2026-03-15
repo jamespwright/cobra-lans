@@ -26,7 +26,7 @@ import yaml
 # ── Paths (project root is one level above this script) ─────────────────────
 ROOT_DIR      = Path(__file__).resolve().parent.parent
 INST_DIR      = ROOT_DIR / "Installers"
-YAML_PATH     = ROOT_DIR / "config" / "games.yaml"
+GAMES_PATH     = ROOT_DIR / "config" / "games.yaml"
 
 # Fields that must be kept exactly as the user configured them in YAML.
 MANUAL_KEYS = (
@@ -105,11 +105,12 @@ def load_existing_games() -> dict[str, dict]:
     Parse the current YAML and return a dict keyed by game name so that
     manual settings can be carried forward into the regenerated file.
     """
-    if not YAML_PATH.exists():
-        return {}
-    with open(YAML_PATH, encoding="utf-8") as fh:
-        data = yaml.safe_load(fh) or {}
-    return {g["name"]: g for g in data.get("games", [])}
+    if not GAMES_PATH.exists():
+        raise FileNotFoundError(f"Missing games.yaml at {GAMES_PATH}")
+
+    with open(GAMES_PATH, encoding="utf-8") as fh:
+        games_data = yaml.safe_load(fh)
+    return {g["name"]: g for g in games_data.get("games", [])}
 
 
 def _get_existing_entry(existing: dict[str, dict], name: str) -> dict:

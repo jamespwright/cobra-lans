@@ -12,89 +12,32 @@ else:
     BASE_DIR = Path(__file__).parent.parent   # project root (one level above app/)
 
 
-def _locate_games_yaml() -> Path:
-    """Return the best candidate path for `config/games.yaml`.
+def _locate_yaml(file_name: str) -> Path | None:
+    """Return the path to a YAML file (e.g., `config/filter.yaml` or `config/games.yaml`).
 
-    Search order:
-      1. Current working directory /config/games.yaml
-      2. Directory next to the executable /config/games.yaml
-      3. Project source `config/games.yaml` (fallback when running from source)
-      4. Default: directory next to the executable (non-existing path)
-    """
-    candidates = []
-    # 1) Working directory (useful when user runs exe from a folder)
-    candidates.append(Path.cwd() / "config" / "games.yaml")
-    # 2) Folder next to the executable (install location)
-    try:
-        exe_dir = Path(sys.executable).resolve().parent
-    except Exception:
-        exe_dir = BASE_DIR
-    candidates.append(exe_dir / "config" / "games.yaml")
-    # 3) Project source layout (developer mode)
-    candidates.append(Path(__file__).parent.parent / "config" / "games.yaml")
-
-    for p in candidates:
-        if p.exists():
-            return p
-    # Default to exe-dir location if nothing exists (caller will handle missing file)
-    return candidates[1]
-
-
-YAML_PATH     = _locate_games_yaml()
-
-
-_FILTER_YAML_URL = (
-    "https://raw.githubusercontent.com/jamespwright/cobra-lans/refs/heads/main/config/filter.yaml"
-)
-
-
-def _download_filter_yaml(dest: Path) -> bool:
-    """Download filter.yaml from GitHub into *dest*.
-
-    Returns True on success, False on any error without touching the filesystem.
-    """
-    try:
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        bust = int(time.time())
-        url = f"{_FILTER_YAML_URL}?_={bust}"
-        req = urllib.request.Request(
-            url,
-            headers={
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-            },
-        )
-        with urllib.request.urlopen(req) as response:
-            dest.write_bytes(response.read())
-        return True
-    except Exception:
-        return False
-
-
-def _locate_filter_yaml() -> Path | None:
-    """Return the path to `config/filter.yaml`.
-
-    Checks the local filter.yaml for a ``sync_from_github`` flag (default
-    ``True``).  When enabled, downloads the latest version from GitHub,
-    overwriting the local copy.  If the download fails (network error,
+    Checks the local YAML file for a ``sync_from_github`` flag (default
+    ``True``). When enabled, downloads the latest version from GitHub,
+    overwriting the local copy. If the download fails (network error,
     etc.) or sync is disabled, falls back to the first existing local
     candidate.
 
-    Applies the same search order as :func:`_locate_games_yaml`.
+    Applies the same search order as the original `_locate_games_yaml`.
     """
-    import yaml as _yaml  # local import to avoid circular issues at module level
-
     candidates = [
-        Path.cwd() / "config" / "filter.yaml",
-        Path(sys.executable).resolve().parent / "config" / "filter.yaml",
-        Path(__file__).parent.parent / "config" / "filter.yaml",
+        Path.cwd() / "config" / file_name,
+        Path(sys.executable).resolve().parent / "config" / file_name,
+        Path(__file__).parent.parent / "config" / file_name,
     ]
 
     # Check whether GitHub sync is enabled in user settings
     from . import usersettings as _us  # local import avoids circular dependency at module level
     if not _us.disable_game_sync:
-        save_to = YAML_PATH.parent / "filter.yaml"
-        if _download_filter_yaml(save_to):
+        save_to = candidates[0]  # Default to the first candidate for saving
+        urls = [
+            "https://raw.githubusercontent.com/jamespwright/cobra-lans/refs/heads/main/config/filter.yaml",
+            "https://raw.githubusercontent.com/jamespwright/cobra-lans/refs/heads/main/config/games.yaml",
+        ]
+        if _download_yaml_files(save_to, urls):
             return save_to
 
     # Sync disabled or download failed – fall back to any existing local copy
@@ -103,8 +46,34 @@ def _locate_filter_yaml() -> Path | None:
             return p
     return None
 
+def _download_yaml_files(dest: Path, urls: list[str]) -> bool:
+    """Download multiple YAML files from GitHub into *dest*.
 
-FILTER_PATH: Path | None = _locate_filter_yaml()
+    Returns True if all downloads succeed, False otherwise.
+    """
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        for url in urls:
+            bust = int(time.time())
+            full_url = f"{url}?_={bust}"
+            req = urllib.request.Request(
+                full_url,
+                headers={
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                },
+            )
+            with urllib.request.urlopen(req) as response:
+                file_name = url.split('/')[-1]  # Extract file name from URL
+                (dest.parent / file_name).write_bytes(response.read())
+        return True
+    except Exception:
+        return False
+
+
+FILTER_PATH: Path | None = _locate_yaml("filter.yaml")
+GAMES_PATH: Path | None = _locate_yaml("games.yaml")
+
 
 # ── Colour palette ─────────────────────────────────────────────────────────────
 C: dict[str, str] = {

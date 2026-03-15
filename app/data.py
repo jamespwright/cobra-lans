@@ -6,7 +6,7 @@ from tkinter import messagebox
 
 import yaml
 
-from .config import BASE_DIR, FILTER_PATH, YAML_PATH
+from .config import BASE_DIR, FILTER_PATH, GAMES_PATH
 from . import usersettings
 
 
@@ -17,16 +17,16 @@ def load_games() -> list[dict]:
     allow-list of game names; only matching entries are returned.
     Exits on failure to read games.yaml.
     """
-    if not YAML_PATH.exists():
+    if not GAMES_PATH.exists():
         messagebox.showerror(
             "Error",
             (
-                f"games.yaml not found:\n{YAML_PATH}\n\n"
+                f"games.yaml not found:\n{GAMES_PATH}\n\n"
                 "Place a `config/games.yaml` next to the executable or in the current working directory."
             ),
         )
         sys.exit(1)
-    with open(YAML_PATH, "r", encoding="utf-8") as fh:
+    with open(GAMES_PATH, "r", encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
     games = data.get("games", [])
 
