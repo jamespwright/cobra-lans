@@ -44,6 +44,18 @@ def load_games() -> list[dict]:
     return games
 
 
+def load_filter_names() -> list[str]:
+    """Return the list of filter names from filter.yaml, or [] if unavailable."""
+    if FILTER_PATH is None or not FILTER_PATH.exists():
+        return []
+    try:
+        with open(FILTER_PATH, "r", encoding="utf-8") as fh:
+            data = yaml.safe_load(fh) or {}
+        return [f["name"] for f in (data.get("filters") or []) if "name" in f]
+    except Exception:
+        return []
+
+
 def _base_path(game: dict) -> Path:
     """Return the absolute base installer directory for *game*."""
     bp = game.get("base_path", "")
