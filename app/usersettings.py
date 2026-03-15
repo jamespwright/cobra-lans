@@ -10,9 +10,9 @@ from pathlib import Path
 import yaml
 
 _DEFAULTS: dict = {
-    "sync_enabled":      True,
-    "filter_enabled":    False,
+    "disable_game_sync":     False,
     "disable_downloads": False,
+    "games_filter":      "",
     "download_url":      None,
 }
 
@@ -66,9 +66,9 @@ try:
 except Exception:
     pass
 
-sync_enabled:      bool       = bool(_data["sync_enabled"])
-filter_enabled:    bool       = bool(_data["filter_enabled"])
+disable_game_sync:     bool       = bool(_data["disable_game_sync"])
 disable_downloads: bool       = bool(_data["disable_downloads"])
+games_filter:      str        = str(_data["games_filter"] or "")
 download_url:      str | None = _data["download_url"] or None
 
 
@@ -81,19 +81,19 @@ def save(**kwargs) -> None:
 
         usersettings.save(download_url="https://...")
     """
-    global sync_enabled, filter_enabled, disable_downloads, download_url
+    global disable_game_sync, disable_downloads, games_filter, download_url
 
     current = {
-        "sync_enabled":      sync_enabled,
-        "filter_enabled":    filter_enabled,
+        "disable_game_sync":     disable_game_sync,
         "disable_downloads": disable_downloads,
+        "games_filter":      games_filter,
         "download_url":      download_url,
     }
     current.update(kwargs)
 
-    sync_enabled      = bool(current["sync_enabled"])
-    filter_enabled    = bool(current["filter_enabled"])
+    disable_game_sync     = bool(current["disable_game_sync"])
     disable_downloads = bool(current["disable_downloads"])
+    games_filter      = str(current["games_filter"] or "")
     download_url      = current["download_url"] or None
 
     with open(SETTINGS_PATH, "w", encoding="utf-8") as fh:

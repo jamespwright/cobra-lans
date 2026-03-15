@@ -31,12 +31,15 @@ def load_games() -> list[dict]:
     games = data.get("games", [])
 
     # Apply optional allow-list filter
-    if FILTER_PATH is not None and usersettings.filter_enabled:
+    if FILTER_PATH is not None and usersettings.games_filter:
         with open(FILTER_PATH, "r", encoding="utf-8") as fh:
             filter_data = yaml.safe_load(fh) or {}
-        allowed = {str(n) for n in (filter_data.get("games") or [])}
-        if allowed:
-            games = [g for g in games if g.get("name") in allowed]
+        filters = filter_data.get("filters") or []
+        active = next((f for f in filters if f.get("name") == usersettings.games_filter), None)
+        if active:
+            allowed = {str(n) for n in (active.get("games") or [])}
+            if allowed:
+                games = [g for g in games if g.get("name") in allowed]
 
     return games
 

@@ -92,7 +92,7 @@ def _locate_filter_yaml() -> Path | None:
 
     # Check whether GitHub sync is enabled in user settings
     from . import usersettings as _us  # local import avoids circular dependency at module level
-    if _us.sync_enabled:
+    if not _us.disable_game_sync:
         save_to = YAML_PATH.parent / "filter.yaml"
         if _download_filter_yaml(save_to):
             return save_to
