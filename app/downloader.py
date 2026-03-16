@@ -328,7 +328,8 @@ async def _download_game(
 
             total_files = len(files)
             total_bytes = sum(f.size for f in files)
-            bytes_done = 0
+            bytes_done = 0     # all accounted-for bytes (downloaded + skipped), for progress %
+            bytes_xferred = 0  # only bytes actually transferred this session, for speed
             files_done = 0
             t0 = time.monotonic()
             last_notify: list[float] = [0.0]  # mutable for closure
@@ -339,7 +340,7 @@ async def _download_game(
                     return
                 last_notify[0] = now
                 elapsed = now - t0
-                speed = bytes_done / elapsed if elapsed > 0 else 0
+                speed = bytes_xferred / elapsed if elapsed > 0 else 0
                 eta = (total_bytes - bytes_done) / speed if speed > 0 else 0
                 pct = int(bytes_done / total_bytes * 100) if total_bytes else 0
                 notify(
@@ -348,15 +349,16 @@ async def _download_game(
                 )
 
             def on_chunk(n: int) -> None:
-                nonlocal bytes_done
+                nonlocal bytes_done, bytes_xferred
                 bytes_done += n
+                bytes_xferred += n
                 _notify_progress()
 
             for entry in files:
                 downloaded = await _download_single(session, entry, on_chunk=on_chunk)
                 files_done += 1
                 if not downloaded:
-                    # File was skipped (already up-to-date); count its bytes now
+                    # File was skipped (already up-to-date); count toward progress but not speed
                     bytes_done += entry.size
                 _notify_progress(force=True)
 

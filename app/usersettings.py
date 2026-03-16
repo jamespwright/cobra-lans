@@ -12,6 +12,7 @@ import yaml
 _DEFAULTS: dict = {
     "disable_game_sync":     False,
     "disable_downloads": False,
+    "download_only":      False,
     "games_filter":      "",
     "download_url":      None,
 }
@@ -68,6 +69,7 @@ except Exception:
 
 disable_game_sync:     bool       = bool(_data["disable_game_sync"])
 disable_downloads: bool       = bool(_data["disable_downloads"])
+download_only:     bool       = bool(_data["download_only"])
 games_filter:      str        = str(_data["games_filter"] or "")
 download_url:      str | None = _data["download_url"] or None
 
@@ -81,11 +83,12 @@ def save(**kwargs) -> None:
 
         usersettings.save(download_url="https://...")
     """
-    global disable_game_sync, disable_downloads, games_filter, download_url
+    global disable_game_sync, disable_downloads, download_only, games_filter, download_url
 
     current = {
         "disable_game_sync":     disable_game_sync,
         "disable_downloads": disable_downloads,
+        "download_only":      download_only,
         "games_filter":      games_filter,
         "download_url":      download_url,
     }
@@ -93,6 +96,7 @@ def save(**kwargs) -> None:
 
     disable_game_sync     = bool(current["disable_game_sync"])
     disable_downloads = bool(current["disable_downloads"])
+    download_only     = bool(current["download_only"])
     games_filter      = str(current["games_filter"] or "")
     download_url      = current["download_url"] or None
 

@@ -17,10 +17,12 @@ def run_installs(
     server_ip_parts: list[str] | None,
     download_url: str | None = None,
     status_callback: StatusCallback | None = None,
+    download_only: bool = False,
 ) -> list[str]:
     """Download (when *download_url* is set) and install each game.
 
-    Returns a list of error messages (empty = all OK).
+    When *download_only* is True, only the download phase runs and installation
+    is skipped.  Returns a list of error messages (empty = all OK).
     """
     errors: list[str] = []
 
@@ -38,6 +40,9 @@ def run_installs(
                 if dl_errors:
                     errors.extend(f"{name}: {e}" for e in dl_errors)
                     continue
+
+            if download_only:
+                continue
 
             # ── Install phase ──────────────────────────────────────────
             _notify("Installing\u2026")

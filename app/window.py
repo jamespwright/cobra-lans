@@ -34,6 +34,7 @@ class CobraLANs(tk.Tk):
         self.check_vars: list[tk.BooleanVar]     = []
         self._stripe_widgets: list[tk.Frame]     = []
         self._status_vars: list[tk.StringVar]    = []
+        self._size_vars: list[tk.StringVar]      = []
         self.install_type                        = tk.StringVar(value="game")
         self.player_name                         = tk.StringVar()
         self._check_all_var                      = tk.BooleanVar(value=False)
@@ -159,6 +160,7 @@ class CobraLANs(tk.Tk):
         self.check_vars.clear()
         self._stripe_widgets.clear()
         self._status_vars.clear()
+        self._size_vars.clear()
         self._check_all_var.set(False)
 
         mode = self.install_type.get()
@@ -201,6 +203,7 @@ class CobraLANs(tk.Tk):
         name_lbl.pack(side="left", padx=(8, 0), fill="x", expand=True)
 
         size_var = tk.StringVar(value="---")
+        self._size_vars.append(size_var)
         size_lbl = tk.Label(frame, textvariable=size_var, font=FONT,
                      fg=C["accent_dim"], bg=row_bg, width=10, anchor="e")
         size_lbl.pack(side="right", padx=(0, 12))
@@ -306,6 +309,15 @@ class CobraLANs(tk.Tk):
             "DISABLE DOWNLOADS",
             "Disable downloading files",
             dl_var,
+        )
+
+        dl_only_var = tk.BooleanVar(value=usersettings.download_only)
+        self._settings_vars["download_only"] = dl_only_var
+        self._add_toggle_row(
+            content, "download_only",
+            "DOWNLOAD ONLY",
+            "Download no installation",
+            dl_only_var,
         )
 
         neon_line(content, C["border_hi"])
@@ -464,6 +476,7 @@ class CobraLANs(tk.Tk):
             for key, val in [
                 ("disable_game_sync", usersettings.disable_game_sync),
                 ("disable_downloads", usersettings.disable_downloads),
+                ("download_only",     usersettings.download_only),
                 ("games_filter",      usersettings.games_filter or ""),
                 ("download_url",      usersettings.download_url or ""),
             ]:
@@ -542,7 +555,7 @@ class CobraLANs(tk.Tk):
         kwargs = {}
         for key, var in self._settings_vars.items():
             raw = var.get()
-            if key in ("disable_game_sync", "disable_downloads"):
+            if key in ("disable_game_sync", "disable_downloads", "download_only"):
                 kwargs[key] = bool(raw)
             elif key == "download_url":
                 kwargs[key] = str(raw).strip() or None
@@ -612,6 +625,31 @@ class CobraLANs(tk.Tk):
             messagebox.showwarning("No Selection", "Select at least one game to install.")
             return
 
+        download_only = usersettings.download_only
+        download_url = None if usersettings.disable_downloads else usersettings.download_url
+
+        if download_only:
+            # Download-only mode: skip player name, install dir, and server IP prompts.
+            if not download_url and not usersettings.disable_downloads:
+                url = simpledialog.askstring(
+                    "Download URL Required",
+                    "Enter the OneDrive share URL to download the files:",
+                    parent=self,
+                )
+                if not url or not url.strip():
+                    return
+                url = url.strip()
+                usersettings.save(download_url=url)
+                download_url = url
+            self._set_busy(True)
+            threading.Thread(
+                target=self._run_in_thread,
+                args=(selected, "", "", None, download_url),
+                kwargs={"download_only": True},
+                daemon=True,
+            ).start()
+            return
+
         player = self.player_name.get().strip()
         if not player:
             messagebox.showwarning(
@@ -675,14 +713,26 @@ class CobraLANs(tk.Tk):
         player:            str,
         server_ip_parts:   list[str] | None,
         download_url:      str | None = None,
+        download_only:     bool = False,
     ):
         def _status_cb(game_name: str, msg: str) -> None:
             self.after(0, self._update_game_status, game_name, msg)
 
+        def _recalculate_game_size(game_name: str):
+            for i, game in enumerate(self._visible_games):
+                if game["name"] == game_name and i < len(self._size_vars):
+                    self._size_vars[i].set(folder_size_str(get_installer_folder(game)))
+                    break
+
         errors = run_installs(
             selected, install_dir, player, server_ip_parts,
             download_url=download_url, status_callback=_status_cb,
+            download_only=download_only,
         )
+
+        for game in selected:
+            self.after(0, _recalculate_game_size, game["name"])
+
         self.after(0, self._set_busy, False)
         if errors:
             self.after(0, lambda: messagebox.showerror(
@@ -690,7 +740,7 @@ class CobraLANs(tk.Tk):
                 "One or more games failed to install:\n\n" + "\n".join(errors),
             ))
         else:
-            self.after(0, lambda: messagebox.showinfo("Done", "All selected games installed successfully."))
+            self.after(0, lambda: messagebox.showinfo("Done", "All selected games downloaded successfully." if download_only else "All selected games installed successfully."))
 
     def _update_game_status(self, game_name: str, msg: str) -> None:
         """Set the status text for the row matching *game_name*."""
