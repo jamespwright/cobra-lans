@@ -566,6 +566,7 @@ class CobraLANs(tk.Tk):
         usersettings.save(**kwargs)
         self._snapshot_settings()
         self._check_settings_dirty()
+        self._refresh_install_btn_label()
         # Reload game list so filter / sync changes take effect immediately
         self.games = load_games()
         self._populate_game_rows()
@@ -602,7 +603,9 @@ class CobraLANs(tk.Tk):
         btn_outer = tk.Frame(center, bg=C["magenta"], padx=1, pady=1)
         btn_outer.pack(side="left", fill="y")
         self._install_btn = CyberButton(
-            btn_outer, text="\u25b6  INSTALL GAMES", pady=12, command=self._on_install,
+            btn_outer,
+            text="\u25b6  DOWNLOAD GAMES" if usersettings.download_only else "\u25b6  INSTALL GAMES",
+            pady=12, command=self._on_install,
         )
         self._install_btn.pack(fill="both", expand=True)
 
@@ -748,6 +751,12 @@ class CobraLANs(tk.Tk):
             if game["name"] == game_name and i < len(self._status_vars):
                 self._status_vars[i].set(msg)
                 break
+
+    def _refresh_install_btn_label(self) -> None:
+        """Update the install button label to reflect the current download_only setting."""
+        if self._install_btn:
+            label = "\u25b6  DOWNLOAD GAMES" if usersettings.download_only else "\u25b6  INSTALL GAMES"
+            self._install_btn.configure(text=label)
 
     def _set_busy(self, busy: bool):
         """Disable/enable the install button to prevent double-clicks."""
