@@ -49,6 +49,9 @@ jobs:
             copy /Y "config\games.yaml" "dist\config\games.yaml"
         )
 
+    - name: Verify build output
+      run: dir dist
+
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
