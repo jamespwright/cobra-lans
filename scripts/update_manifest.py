@@ -3,9 +3,9 @@
 Cobra LANs – Games updater
 ===========================
 Scans the ``Installers/`` tree, finds the primary installer (.exe or .msi)
-for each game, reads its version, then **fully regenerates**:
+for each game, then **fully regenerates**:
 
-* ``config/games.yaml``  – game metadata (name, version, paths, flags).
+* ``config/games.yaml``  – game metadata (name, paths, flags).
 
 Manual fields already present in games.yaml
 (supports_player_name, requires_server_ip, prerequisites)
@@ -34,69 +34,6 @@ MANUAL_KEYS = (
     "requires_server_ip",
     "prerequisites",
 )
-
-
-
-# ── Installer metadata readers ────────────────────────────────────────────────
-
-def read_msi_properties(msi_path: Path) -> dict[str, str]:
-    """
-    Return ``{"ProductName": ..., "ProductVersion": ...}`` by querying the MSI
-    database through the Windows Installer COM object via PowerShell.
-    Returns an empty dict if reading fails (e.g. file not yet present).
-    """
-    # PowerShell command – open database read-only (mode 0), query the
-    # Property table, collect rows into a hashtable, serialise to JSON.
-    ps = (
-        "$ErrorActionPreference='Stop';"
-        "$i=New-Object -ComObject WindowsInstaller.Installer;"
-        f"$d=$i.OpenDatabase([string]'{msi_path}',0);"
-        "$q=$d.OpenView(\"SELECT Property,Value FROM Property "
-        "WHERE Property='ProductName' OR Property='ProductVersion'\");"
-        "$q.Execute();"
-        "$r=[ordered]@{};"
-        "do{$rec=$q.Fetch();if($rec -ne $null){$r[$rec.StringData(1)]=$rec.StringData(2)}}while($rec -ne $null);"
-        "Write-Output (ConvertTo-Json $r -Compress)"
-    )
-    try:
-        result = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if result.returncode == 0:
-            text = result.stdout.strip()
-            if text:
-                return json.loads(text)
-    except Exception as exc:  # noqa: BLE001
-        print(f"  [warn] MSI read failed for {msi_path.name}: {exc}", file=sys.stderr)
-    return {}
-
-
-def read_exe_version(exe_path: Path) -> str:
-    """
-    Return the ``ProductVersion`` from an EXE's version resource via PowerShell.
-    Returns an empty string if reading fails.
-    """
-    ps = (
-        "$ErrorActionPreference='Stop';"
-        f"$v=(Get-Item '{exe_path}').VersionInfo.ProductVersion;"
-        "if($v){Write-Output $v}"
-    )
-    try:
-        result = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except Exception as exc:  # noqa: BLE001
-        print(f"  [warn] EXE version read failed for {exe_path.name}: {exc}", file=sys.stderr)
-    return ""
-
 
 # ── YAML helpers ───────────────────────────────────────────────────────────────
 
@@ -178,8 +115,7 @@ def scan_installers() -> list[dict]:
     Returns a list of game metadata dicts for ``games.yaml``.
 
     Each game entry has a ``type`` of ``"game"`` or ``"server"``, identifies the
-    primary installer via ``install_exe`` or ``install_msi``, and records the
-    version.
+    primary installer via ``install_exe`` or ``install_msi``.
 
     A ``Server/`` subfolder (case-insensitive) is automatically detected and
     produces a separate server entry.
@@ -246,15 +182,6 @@ def scan_installers() -> list[dict]:
 
         # ── Build game entry ───────────────────────────────────────────────────
         if primary_game is not None:
-            version = ""
-            if game_inst_type == "inno_setup":
-                print("  Reading EXE version …")
-                version = read_exe_version(primary_game)
-            else:
-                print("  Reading MSI metadata …")
-                props   = read_msi_properties(primary_game)
-                version = props.get("ProductVersion", "").strip()
-            print(f"  Version        : {version or '(not found)'}")
 
             existing_entry = _get_existing_entry(existing, dir_name)
             inst_key = "install_exe" if game_inst_type == "inno_setup" else "install_msi"
@@ -269,8 +196,6 @@ def scan_installers() -> list[dict]:
                 "installer_type": game_inst_type,
                 "base_path":      game_base,
             }
-            if version:
-                entry["version"] = version
             entry[inst_key] = primary_game.name
             for k in MANUAL_KEYS:
                 if k in existing_entry:
@@ -286,16 +211,6 @@ def scan_installers() -> list[dict]:
             server_name    = f"{dir_name} Server" if primary_game is not None else dir_name
             existing_entry = _get_existing_entry(existing, server_name)
 
-            version = ""
-            if server_inst_type == "inno_setup":
-                print("  Reading server EXE version …")
-                version = read_exe_version(primary_server)
-            else:
-                print("  Reading server MSI metadata …")
-                props   = read_msi_properties(primary_server)
-                version = props.get("ProductVersion", "").strip()
-            print(f"  Server version : {version or '(not found)'}")
-
             inst_key = "install_exe" if server_inst_type == "inno_setup" else "install_msi"
             server_entry: dict = {
                 "name":           server_name,
@@ -303,8 +218,6 @@ def scan_installers() -> list[dict]:
                 "installer_type": server_inst_type,
                 "base_path":      f"Installers/{dir_name}/{server_subdir.name}",
             }
-            if version:
-                server_entry["version"] = version
             server_entry[inst_key] = primary_server.name
             for k in MANUAL_KEYS:
                 if k in existing_entry:
@@ -322,8 +235,8 @@ def scan_installers() -> list[dict]:
 
 def write_yaml(games: list[dict]) -> None:
     """Serialise *games* back to ``config/games.yaml``."""
-    YAML_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(YAML_PATH, "w", encoding="utf-8") as fh:
+    GAMES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(GAMES_PATH, "w", encoding="utf-8") as fh:
         yaml.dump(
             {"games": games},
             fh,
@@ -334,7 +247,7 @@ def write_yaml(games: list[dict]) -> None:
         )
     print(
         f"\n[done] Wrote {len(games)} game entr{'y' if len(games) == 1 else 'ies'} "
-        f"to {YAML_PATH.relative_to(ROOT_DIR)}"
+        f"to {GAMES_PATH.relative_to(ROOT_DIR)}"
     )
 
 
