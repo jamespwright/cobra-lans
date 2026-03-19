@@ -71,12 +71,6 @@ jobs:
       with:
         name: CobraLANs-build
 
-    - name: Extract artifact
-      run: unzip -o CobraLANs-build.zip -d .
-
-    - name: Verify extracted files
-      run: ls dist
-
     - name: Create GitHub Release
       id: create_release
       uses: actions/create-release@v1
