@@ -71,6 +71,12 @@ jobs:
       with:
         name: CobraLANs-build
 
+    - name: Extract artifact
+      run: unzip -o CobraLANs-build.zip -d .
+
+    - name: Verify extracted files
+      run: ls dist
+
     - name: Create GitHub Release
       id: create_release
       uses: actions/create-release@v1
@@ -89,6 +95,6 @@ jobs:
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ github.workspace }}/dist/Cobra LANs.exe
-        asset_name: Cobra LANs.exe
-        asset_content_type: application/octet-stream
+        asset_path: CobraLANs-build.zip
+        asset_name: CobraLANs-build.zip
+        asset_content_type: application/zip
