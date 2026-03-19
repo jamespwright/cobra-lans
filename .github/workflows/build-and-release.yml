@@ -39,6 +39,7 @@ jobs:
             cobra_lans.py
 
     - name: Copy config files
+      shell: cmd
       run: |
         if exist "config\games.yaml" (
             if not exist "dist\config" mkdir "dist\config"
