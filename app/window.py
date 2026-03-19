@@ -119,12 +119,12 @@ class CobraLANs(tk.Tk):
         tk.Label(col_row, text="", font=FONT, bg=C["surface"], width=3).pack(side="left")   # index
         # ── expandable title ──
         tk.Label(col_row, text="GAME TITLE", font=FONT_BOLD,
-                 bg=C["surface"], fg=C["text_dim"]).pack(side="left", padx=(8, 0))
+                 bg=C["surface"], fg=C["text_dim"]).pack(side="left", padx=(0, 0))
         # ── right columns ──
         tk.Label(col_row, text="DISK SIZE", font=FONT_BOLD,
              bg=C["surface"], fg=C["text_dim"], width=10, anchor="e").pack(side="right", padx=(0, 12))
         tk.Label(col_row, text="STATUS", font=FONT_BOLD,
-             bg=C["surface"], fg=C["text_dim"], width=30, anchor="e").pack(side="right", padx=(0, 8))
+             bg=C["surface"], fg=C["text_dim"], width=30, anchor="w").pack(side="right", padx=(0, 16))
 
         neon_line(container, C["border_hi"])
 
@@ -211,8 +211,8 @@ class CobraLANs(tk.Tk):
         status_var = tk.StringVar(value="")
         self._status_vars.append(status_var)
         status_lbl = tk.Label(frame, textvariable=status_var, font=FONT,
-                     fg=C["yellow"], bg=row_bg, width=30, anchor="e")
-        status_lbl.pack(side="right", padx=(0, 8))
+                     fg=C["accent_dim"], bg=row_bg, width=30, anchor="w")
+        status_lbl.pack(side="right", padx=(0, 0))
 
         threading.Thread(
             target=lambda v=size_var, g=game: v.set(
