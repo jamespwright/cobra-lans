@@ -77,6 +77,6 @@ jobs:
       with:
         tag_name: v${{ github.event.inputs.version }}
         name: Cobra LANs v${{ github.event.inputs.version }}
-        files: CobraLANs-build.zip
+        files: CobraLANs-${{ github.event.inputs.version }}.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
