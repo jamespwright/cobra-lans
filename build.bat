@@ -2,7 +2,7 @@
 setlocal
 
 echo [Cobra LANs] Installing dependencies...
-pip install pyyaml pillow pyinstaller
+pip install -r requirements.txt
 
 echo.
 echo [Cobra LANs] Building executable...
@@ -13,6 +13,7 @@ pyinstaller ^
     --name "Cobra LANs" ^
     --add-data "app;app" ^
     --collect-submodules app ^
+    --collect-all numpy ^
     cobra_lans.py
 
 echo.
