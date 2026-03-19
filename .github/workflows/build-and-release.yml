@@ -70,7 +70,7 @@ jobs:
         path: build-output/
 
     - name: Zip build artifact
-      run: cd build-output && zip -r ../CobraLANs-build.zip .
+      run: cd build-output && zip -r ../CobraLANs-${{ github.event.inputs.version }}.zip .
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
