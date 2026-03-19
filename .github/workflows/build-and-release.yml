@@ -16,10 +16,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
 
@@ -63,32 +63,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-
     - name: Download build artifact
       uses: actions/download-artifact@v4
       with:
         name: CobraLANs-build
+        path: build-output/
+
+    - name: Zip build artifact
+      run: zip -r CobraLANs-build.zip build-output/
 
     - name: Create GitHub Release
-      id: create_release
-      uses: actions/create-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ github.event.inputs.version }}
-        release_name: Cobra LANs v${{ github.event.inputs.version }}
-        draft: false
-        prerelease: false
+        name: Cobra LANs v${{ github.event.inputs.version }}
+        files: CobraLANs-build.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Print current directory
-      run: pwd
-
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: CobraLANs-build.zip
-        asset_name: CobraLANs-build.zip
-        asset_content_type: application/zip
