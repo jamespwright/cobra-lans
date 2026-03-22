@@ -4,7 +4,7 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
-from .config import C, FONT, FONT_BOLD, FONT_HEAD
+from .config import BASE_DIR, C, FONT, FONT_BOLD, FONT_HEAD
 from .data import (
     folder_size_str,
     get_installer_folder,
@@ -14,6 +14,7 @@ from .data import (
 )
 from . import usersettings
 from .installer import run_installs
+from .downloader import download_game
 from .widgets import CyberButton, ToggleSwitch, neon_box, neon_line
 
 _PANEL_W = 380   # width of the slide-in settings panel
@@ -40,6 +41,8 @@ class CobraLANs(tk.Tk):
         self._check_all_var                      = tk.BooleanVar(value=False)
         self._install_btn: CyberButton | None    = None
         self._row_container: tk.Frame | None     = None
+        self._installing                         = False
+        self._config_reload_pending              = False
 
         self._build_ui()
 
@@ -49,12 +52,15 @@ class CobraLANs(tk.Tk):
         # Bind the resize event to ensure the settings panel stays snapped
         self.bind("<Configure>", self._on_resize)
 
+        self._sync_config()
+
     # ── UI construction ────────────────────────────────────────────────────────
 
     def _build_ui(self):
         self._build_header()
         self._build_game_list()
         self._build_bottom_bar()
+        self._build_status_bar()
         self._build_settings_panel()   # overlay – must be last so it stacks on top
 
     def _build_header(self):
@@ -250,6 +256,52 @@ class CobraLANs(tk.Tk):
             w.bind("<Leave>",    _leave)
 
     # ── Bottom bar ─────────────────────────────────────────────────────────────
+
+    # ── Status bar ────────────────────────────────────────────────────────────────
+
+    def _build_status_bar(self) -> None:
+        """Thin status bar at the very bottom; shows OneDrive sync state."""
+        self._status_base_text: str = ""
+        self._status_dot_count: int = 0
+        self._status_animating: bool = False
+        self._status_after_id = None
+
+        bar = tk.Frame(self, bg=C["surface2"])
+        bar.pack(fill="x")
+        neon_line(bar, C["cyan"])
+
+        self._status_label = tk.Label(
+            bar, text="",
+            font=("Courier New", 13),
+            bg=C["surface2"], fg=C["text_dim"],
+            anchor="w", padx=14, pady=5,
+        )
+        self._status_label.pack(side="left", fill="x")
+
+    def _set_status(self, text: str, animated: bool = False) -> None:
+        """Update the status bar text. Pass animated=True to start dot animation."""
+        self._stop_dot_animation()
+        self._status_base_text = text
+        if animated:
+            self._status_dot_count = 0
+            self._status_animating = True
+            self._tick_dot_animation()
+        else:
+            self._status_label.configure(text=text)
+
+    def _tick_dot_animation(self) -> None:
+        if not self._status_animating:
+            return
+        dots = "." * (self._status_dot_count % 4)
+        self._status_label.configure(text=f"{self._status_base_text}{dots}")
+        self._status_dot_count += 1
+        self._status_after_id = self.after(500, self._tick_dot_animation)
+
+    def _stop_dot_animation(self) -> None:
+        self._status_animating = False
+        if self._status_after_id is not None:
+            self.after_cancel(self._status_after_id)
+            self._status_after_id = None
 
     # ── Settings panel ──────────────────────────────────────────────────────────
 
@@ -552,6 +604,7 @@ class CobraLANs(tk.Tk):
 
     def _save_settings(self) -> None:
         """Persist settings to YAML file and reload game data."""
+        old_url = usersettings.download_url
         kwargs = {}
         for key, var in self._settings_vars.items():
             raw = var.get()
@@ -567,9 +620,10 @@ class CobraLANs(tk.Tk):
         self._snapshot_settings()
         self._check_settings_dirty()
         self._refresh_install_btn_label()
-        # Reload game list so filter / sync changes take effect immediately
         self.games = load_games()
         self._populate_game_rows()
+        if usersettings.download_url != old_url and usersettings.download_url and not usersettings.disable_game_sync:
+            self._sync_config()
 
     def _build_bottom_bar(self):
         bar = tk.Frame(self, bg=C["bg"], padx=22, pady=14)
@@ -758,7 +812,41 @@ class CobraLANs(tk.Tk):
             label = "\u25b6  DOWNLOAD GAMES" if usersettings.download_only else "\u25b6  INSTALL GAMES"
             self._install_btn.configure(text=label)
 
+    def _sync_config(self) -> None:
+        if usersettings.disable_game_sync or not usersettings.download_url:
+            return
+        self._set_status("\u25b6 Syncing games list", animated=True)
+        threading.Thread(target=self._run_config_sync, daemon=True).start()
+
+    def _run_config_sync(self) -> None:
+        games_yaml = BASE_DIR / "config" / "games.yaml"
+        mtime_before = games_yaml.stat().st_mtime if games_yaml.exists() else None
+
+        errors = download_game(usersettings.download_url, {"base_path": "config"}, None)
+
+        if errors:
+            self.after(0, self._set_status, "\u25b6 Failed to connect to OneDrive")
+        else:
+            mtime_after = games_yaml.stat().st_mtime if games_yaml.exists() else None
+            if mtime_after != mtime_before:
+                # games.yaml was actually written – reload the list
+                self.after(0, self._on_config_synced)
+            else:
+                self.after(0, self._set_status, "\u25b6 Connected to OneDrive")
+
+    def _on_config_synced(self) -> None:
+        self._set_status("\u25b6 Games list updated")
+        if self._installing:
+            self._config_reload_pending = True
+        else:
+            self.games = load_games()
+            self._populate_game_rows()
+
     def _set_busy(self, busy: bool):
-        """Disable/enable the install button to prevent double-clicks."""
+        self._installing = busy
         if self._install_btn:
             self._install_btn.configure(state="disabled" if busy else "normal")
+        if not busy and self._config_reload_pending:
+            self._config_reload_pending = False
+            self.games = load_games()
+            self._populate_game_rows()
