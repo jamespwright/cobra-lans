@@ -41,14 +41,6 @@ jobs:
             --collect-all numpy ^
             cobra_lans.py
 
-    - name: Copy config files
-      shell: cmd
-      run: |
-        if exist "config\games.yaml" (
-            if not exist "dist\config" mkdir "dist\config"
-            copy /Y "config\games.yaml" "dist\config\games.yaml"
-        )
-
     - name: Verify build output
       run: dir dist
 
