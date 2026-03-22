@@ -28,6 +28,8 @@ class CobraLANs(tk.Tk):
         self.configure(bg=C["bg"])
         self.geometry("1500x1080")
         self.minsize(1280, 580)
+        # Maximize window on launch
+        self.state('zoomed')
 
         self.games = load_games()
         self.install_type = tk.StringVar(value="game")
