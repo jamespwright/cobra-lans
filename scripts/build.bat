@@ -1,8 +1,11 @@
 @echo off
 setlocal
 
+rem Change to the root directory of the project
+cd /d "%~dp0.."
+
 echo [Cobra LANs] Installing dependencies...
-pip install -r requirements.txt
+pip install -r app\requirements.txt
 
 echo.
 echo [Cobra LANs] Building executable...
@@ -11,12 +14,12 @@ pyinstaller ^
     --noconsole ^
     --uac-admin ^
     --name "Cobra LANs" ^
-    --add-data "core;core" ^
-    --add-data "ui;ui" ^
-    --collect-submodules core ^
-    --collect-submodules ui ^
+    --add-data "app/core;core" ^
+    --add-data "app/ui;ui" ^
+    --collect-submodules app.core ^
+    --collect-submodules app.ui ^
     --collect-all numpy ^
-    cobra_lans.py
+    app/cobra_lans.py
 
 echo.
 if exist "dist\Cobra LANs.exe" (
