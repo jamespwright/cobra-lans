@@ -8,3 +8,4 @@ plans
 usersettings.yaml
 filter.yaml
 games.yaml
+__pycache__

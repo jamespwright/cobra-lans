@@ -11,8 +11,10 @@ pyinstaller ^
     --noconsole ^
     --uac-admin ^
     --name "Cobra LANs" ^
-    --add-data "app;app" ^
-    --collect-submodules app ^
+    --add-data "core;core" ^
+    --add-data "ui;ui" ^
+    --collect-submodules core ^
+    --collect-submodules ui ^
     --collect-all numpy ^
     cobra_lans.py
 

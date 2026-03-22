@@ -1,4 +1,8 @@
-"""Cobra LANs – OneDrive download logic."""
+# OneDrive download logic.
+#
+# Downloads game files from a OneDrive share link, with integrity checking
+# via QuickXorHash and progress reporting through a status callback.
+# This module has no UI dependencies.
 
 from __future__ import annotations
 
@@ -13,7 +17,7 @@ import numpy as np
 from aiohttp import ClientSession, ClientTimeout
 from yarl import URL
 
-from .config import BASE_DIR
+from . import BASE_DIR
 
 # ── OneDrive API constants ─────────────────────────────────────────────────────
 API_ENTRYPOINT = URL("https://api.onedrive.com/v1.0/drives/")
@@ -70,7 +74,6 @@ class _AccessDetails:
 @dataclass
 class _FileEntry:
     """A remote file to download."""
-
     download_url: URL
     local_path: Path
     size: int
@@ -306,21 +309,15 @@ async def _download_game(
                 return errors
 
             # Navigate to the subfolder matching base_path.
-            # If the share link already points to the first segment of base_path
-            # (e.g. the root folder is named "Installers" and base_path starts
-            # with "Installers/"), skip that leading segment so we don't look for
-            # a child called "Installers" inside "Installers".
             if base_path:
                 parts = [p for p in base_path.replace("\\", "/").split("/") if p]
                 root_name = root.get("name", "")
                 if parts and parts[0] == root_name:
                     parts = parts[1:]
                 if parts:
-                    #notify("Navigating\u2026")
                     api_url = await _navigate_to_subfolder(session, api_url, parts)
 
             # Enumerate files
-            #notify("Scanning\u2026")
             files = await _collect_files(session, api_url, target_dir)
             if not files:
                 notify("Up to date")
@@ -328,11 +325,11 @@ async def _download_game(
 
             total_files = len(files)
             total_bytes = sum(f.size for f in files)
-            bytes_done = 0     # all accounted-for bytes (downloaded + skipped), for progress %
-            bytes_xferred = 0  # only bytes actually transferred this session, for speed
+            bytes_done = 0
+            bytes_xferred = 0
             files_done = 0
             t0 = time.monotonic()
-            last_notify: list[float] = [0.0]  # mutable for closure
+            last_notify: list[float] = [0.0]
 
             def _notify_progress(force: bool = False) -> None:
                 now = time.monotonic()
@@ -358,7 +355,6 @@ async def _download_game(
                 downloaded = await _download_single(session, entry, on_chunk=on_chunk)
                 files_done += 1
                 if not downloaded:
-                    # File was skipped (already up-to-date); count toward progress but not speed
                     bytes_done += entry.size
                 _notify_progress(force=True)
 

@@ -1,1 +1,0 @@
-"""Cobra LANs application package."""
