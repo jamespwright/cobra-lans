@@ -14,6 +14,7 @@ from .data import (
 )
 from . import usersettings
 from .installer import run_installs
+from .downloader import download_game
 from .widgets import CyberButton, ToggleSwitch, neon_box, neon_line
 
 _PANEL_W = 380   # width of the slide-in settings panel
@@ -40,6 +41,8 @@ class CobraLANs(tk.Tk):
         self._check_all_var                      = tk.BooleanVar(value=False)
         self._install_btn: CyberButton | None    = None
         self._row_container: tk.Frame | None     = None
+        self._installing                         = False
+        self._config_reload_pending              = False
 
         self._build_ui()
 
@@ -48,6 +51,8 @@ class CobraLANs(tk.Tk):
 
         # Bind the resize event to ensure the settings panel stays snapped
         self.bind("<Configure>", self._on_resize)
+
+        self._sync_config()
 
     # ── UI construction ────────────────────────────────────────────────────────
 
@@ -552,6 +557,7 @@ class CobraLANs(tk.Tk):
 
     def _save_settings(self) -> None:
         """Persist settings to YAML file and reload game data."""
+        old_url = usersettings.download_url
         kwargs = {}
         for key, var in self._settings_vars.items():
             raw = var.get()
@@ -567,9 +573,10 @@ class CobraLANs(tk.Tk):
         self._snapshot_settings()
         self._check_settings_dirty()
         self._refresh_install_btn_label()
-        # Reload game list so filter / sync changes take effect immediately
         self.games = load_games()
         self._populate_game_rows()
+        if usersettings.download_url != old_url and usersettings.download_url and not usersettings.disable_game_sync:
+            self._sync_config()
 
     def _build_bottom_bar(self):
         bar = tk.Frame(self, bg=C["bg"], padx=22, pady=14)
@@ -758,7 +765,28 @@ class CobraLANs(tk.Tk):
             label = "\u25b6  DOWNLOAD GAMES" if usersettings.download_only else "\u25b6  INSTALL GAMES"
             self._install_btn.configure(text=label)
 
+    def _sync_config(self) -> None:
+        if usersettings.disable_game_sync or not usersettings.download_url:
+            return
+        threading.Thread(target=self._run_config_sync, daemon=True).start()
+
+    def _run_config_sync(self) -> None:
+        errors = download_game(usersettings.download_url, {"base_path": "config"}, None)
+        if not errors:
+            self.after(0, self._on_config_synced)
+
+    def _on_config_synced(self) -> None:
+        if self._installing:
+            self._config_reload_pending = True
+        else:
+            self.games = load_games()
+            self._populate_game_rows()
+
     def _set_busy(self, busy: bool):
-        """Disable/enable the install button to prevent double-clicks."""
+        self._installing = busy
         if self._install_btn:
             self._install_btn.configure(state="disabled" if busy else "normal")
+        if not busy and self._config_reload_pending:
+            self._config_reload_pending = False
+            self.games = load_games()
+            self._populate_game_rows()
