@@ -273,7 +273,7 @@ class CobraLANs(tk.Tk):
         self._status_label = tk.Label(
             bar, text="",
             font=("Courier New", 13),
-            bg=C["surface2"], fg=C["green"],
+            bg=C["surface2"], fg=C["text_dim"],
             anchor="w", padx=14, pady=5,
         )
         self._status_label.pack(side="left", fill="x")
