@@ -4,7 +4,7 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
-from .config import C, FONT, FONT_BOLD, FONT_HEAD
+from .config import BASE_DIR, C, FONT, FONT_BOLD, FONT_HEAD
 from .data import (
     folder_size_str,
     get_installer_folder,
@@ -60,6 +60,7 @@ class CobraLANs(tk.Tk):
         self._build_header()
         self._build_game_list()
         self._build_bottom_bar()
+        self._build_status_bar()
         self._build_settings_panel()   # overlay – must be last so it stacks on top
 
     def _build_header(self):
@@ -255,6 +256,52 @@ class CobraLANs(tk.Tk):
             w.bind("<Leave>",    _leave)
 
     # ── Bottom bar ─────────────────────────────────────────────────────────────
+
+    # ── Status bar ────────────────────────────────────────────────────────────────
+
+    def _build_status_bar(self) -> None:
+        """Thin status bar at the very bottom; shows OneDrive sync state."""
+        self._status_base_text: str = ""
+        self._status_dot_count: int = 0
+        self._status_animating: bool = False
+        self._status_after_id = None
+
+        bar = tk.Frame(self, bg=C["surface2"])
+        bar.pack(fill="x")
+        neon_line(bar, C["cyan"])
+
+        self._status_label = tk.Label(
+            bar, text="",
+            font=("Courier New", 13),
+            bg=C["surface2"], fg=C["green"],
+            anchor="w", padx=14, pady=5,
+        )
+        self._status_label.pack(side="left", fill="x")
+
+    def _set_status(self, text: str, animated: bool = False) -> None:
+        """Update the status bar text. Pass animated=True to start dot animation."""
+        self._stop_dot_animation()
+        self._status_base_text = text
+        if animated:
+            self._status_dot_count = 0
+            self._status_animating = True
+            self._tick_dot_animation()
+        else:
+            self._status_label.configure(text=text)
+
+    def _tick_dot_animation(self) -> None:
+        if not self._status_animating:
+            return
+        dots = "." * (self._status_dot_count % 4)
+        self._status_label.configure(text=f"{self._status_base_text}{dots}")
+        self._status_dot_count += 1
+        self._status_after_id = self.after(500, self._tick_dot_animation)
+
+    def _stop_dot_animation(self) -> None:
+        self._status_animating = False
+        if self._status_after_id is not None:
+            self.after_cancel(self._status_after_id)
+            self._status_after_id = None
 
     # ── Settings panel ──────────────────────────────────────────────────────────
 
@@ -768,14 +815,27 @@ class CobraLANs(tk.Tk):
     def _sync_config(self) -> None:
         if usersettings.disable_game_sync or not usersettings.download_url:
             return
+        self._set_status("\u25b6 Syncing games list", animated=True)
         threading.Thread(target=self._run_config_sync, daemon=True).start()
 
     def _run_config_sync(self) -> None:
+        games_yaml = BASE_DIR / "config" / "games.yaml"
+        mtime_before = games_yaml.stat().st_mtime if games_yaml.exists() else None
+
         errors = download_game(usersettings.download_url, {"base_path": "config"}, None)
-        if not errors:
-            self.after(0, self._on_config_synced)
+
+        if errors:
+            self.after(0, self._set_status, "\u25b6 Failed to connect to OneDrive")
+        else:
+            mtime_after = games_yaml.stat().st_mtime if games_yaml.exists() else None
+            if mtime_after != mtime_before:
+                # games.yaml was actually written – reload the list
+                self.after(0, self._on_config_synced)
+            else:
+                self.after(0, self._set_status, "\u25b6 Connected to OneDrive")
 
     def _on_config_synced(self) -> None:
+        self._set_status("\u25b6 Games list updated")
         if self._installing:
             self._config_reload_pending = True
         else:
