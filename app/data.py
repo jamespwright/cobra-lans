@@ -1,38 +1,24 @@
 """Cobra LANs – data loading and file-system utilities."""
 
-import sys
 from pathlib import Path
-from tkinter import messagebox
 
 import yaml
 
-from .config import BASE_DIR, FILTER_PATH, GAMES_PATH
+from .config import BASE_DIR, _locate_yaml
 from . import usersettings
 
 
 def load_games() -> list[dict]:
-    """Load and return the games list from games.yaml.
-
-    If ``config/filter.yaml`` exists its ``games`` list is treated as an
-    allow-list of game names; only matching entries are returned.
-    Exits on failure to read games.yaml.
-    """
-    if not GAMES_PATH.exists():
-        messagebox.showerror(
-            "Error",
-            (
-                f"games.yaml not found:\n{GAMES_PATH}\n\n"
-                "Place a `config/games.yaml` next to the executable or in the current working directory."
-            ),
-        )
-        sys.exit(1)
-    with open(GAMES_PATH, "r", encoding="utf-8") as fh:
+    games_path = _locate_yaml("games.yaml")
+    if games_path is None:
+        return []
+    with open(games_path, "r", encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
     games = data.get("games", [])
 
-    # Apply optional allow-list filter
-    if FILTER_PATH is not None and usersettings.games_filter:
-        with open(FILTER_PATH, "r", encoding="utf-8") as fh:
+    filter_path = _locate_yaml("filter.yaml")
+    if filter_path is not None and usersettings.games_filter:
+        with open(filter_path, "r", encoding="utf-8") as fh:
             filter_data = yaml.safe_load(fh) or {}
         filters = filter_data.get("filters") or []
         active = next((f for f in filters if f.get("name") == usersettings.games_filter), None)
@@ -45,11 +31,11 @@ def load_games() -> list[dict]:
 
 
 def load_filter_names() -> list[str]:
-    """Return the list of filter names from filter.yaml, or [] if unavailable."""
-    if FILTER_PATH is None or not FILTER_PATH.exists():
+    filter_path = _locate_yaml("filter.yaml")
+    if filter_path is None:
         return []
     try:
-        with open(FILTER_PATH, "r", encoding="utf-8") as fh:
+        with open(filter_path, "r", encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}
         return [f["name"] for f in (data.get("filters") or []) if "name" in f]
     except Exception:
