@@ -28,7 +28,7 @@ def _elevate() -> None:
     sys.exit(0)
 
 
-from app.window import CobraLANs
+from ui.app import CobraLANs
 
 if __name__ == "__main__":
     if not _is_admin():

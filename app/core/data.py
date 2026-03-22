@@ -1,27 +1,31 @@
-"""Cobra LANs – data loading and file-system utilities."""
+# Game data loading and file-system utilities.
+#
+# Reads games.yaml and filter.yaml to produce the game list shown in the UI.
+# Also provides helpers for resolving installer paths and computing folder sizes.
 
 from pathlib import Path
 
 import yaml
 
-from .config import BASE_DIR, _locate_yaml
-from . import usersettings
+from . import BASE_DIR, locate_yaml
+from . import settings
 
 
 def load_games() -> list[dict]:
-    games_path = _locate_yaml("games.yaml")
+    """Load and optionally filter the game list from games.yaml."""
+    games_path = locate_yaml("games.yaml")
     if games_path is None:
         return []
     with open(games_path, "r", encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
     games = data.get("games", [])
 
-    filter_path = _locate_yaml("filter.yaml")
-    if filter_path is not None and usersettings.games_filter:
+    filter_path = locate_yaml("filter.yaml")
+    if filter_path and settings.games_filter:
         with open(filter_path, "r", encoding="utf-8") as fh:
             filter_data = yaml.safe_load(fh) or {}
         filters = filter_data.get("filters") or []
-        active = next((f for f in filters if f.get("name") == usersettings.games_filter), None)
+        active = next((f for f in filters if f.get("name") == settings.games_filter), None)
         if active:
             allowed = {str(n) for n in (active.get("games") or [])}
             if allowed:
@@ -31,7 +35,8 @@ def load_games() -> list[dict]:
 
 
 def load_filter_names() -> list[str]:
-    filter_path = _locate_yaml("filter.yaml")
+    """Return the list of filter names from filter.yaml."""
+    filter_path = locate_yaml("filter.yaml")
     if filter_path is None:
         return []
     try:
@@ -42,23 +47,14 @@ def load_filter_names() -> list[str]:
         return []
 
 
-def _base_path(game: dict) -> Path:
-    """Return the absolute base installer directory for *game*."""
-    bp = game.get("base_path", "")
-    return BASE_DIR / bp if bp else BASE_DIR
-
-
 def get_installer_folder(game: dict) -> Path:
-    """Return the absolute path to the installer directory for *game*.
-
-    ``base_path`` already points to the full installer subdirectory
-    (e.g. ``Installers/Call Of Duty 4/Game``), so this simply resolves it.
-    """
-    return _base_path(game)
+    """Return the absolute path to the installer directory for *game*."""
+    bp = game.get("base_path", "")
+    return (BASE_DIR / bp) if bp else BASE_DIR
 
 
 def folder_size_str(path: Path) -> str:
-    """Return a human-readable size string for *path*, or '—' if absent/empty."""
+    """Return a human-readable size string for *path*, or '\u2014' if absent/empty."""
     if not path.exists():
         return "\u2014"
     total = sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
@@ -72,15 +68,13 @@ def folder_size_str(path: Path) -> str:
 
 
 def missing_installer_files(games: list[dict]) -> list[str]:
-    """Return the names of games whose installer file does not exist locally."""
+    """Return names of games whose installer file doesn't exist locally."""
     missing: list[str] = []
     for game in games:
-        bp = _base_path(game)
+        bp = game.get("base_path", "")
+        base = (BASE_DIR / bp) if bp else BASE_DIR
         installer_type = game.get("installer_type", "msi")
-        if installer_type == "inno_setup":
-            rel = game.get("install_exe", "")
-        else:
-            rel = game.get("install_msi", "")
-        if rel and not (bp / rel).exists():
+        rel = game.get("install_exe" if installer_type == "inno_setup" else "install_msi", "")
+        if rel and not (base / rel).exists():
             missing.append(game["name"])
     return missing
