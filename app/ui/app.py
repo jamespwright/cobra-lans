@@ -24,7 +24,7 @@ class CobraLANs(tk.Tk):
 
     def __init__(self):
         super().__init__()
-        self.title("Cobra LANs")
+        self.title("LAN Game Installer")
         self.configure(bg=C["bg"])
         self.state('zoomed')
 

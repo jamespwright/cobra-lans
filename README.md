@@ -1,4 +1,4 @@
-# Cobra LANs
+# LAN Game Installer
 
 A cyberpunk-styled Windows desktop application for running LAN party game installations. Select one or more games from a YAML-driven manifest and install them all in one click — with file-integrity checking, version validation, and optional per-event game filtering baked in.
 
@@ -82,7 +82,7 @@ Run the included build script:
 build.bat
 ```
 
-The finished executable is placed at `dist\Cobra LANs.exe`. The script also copies `config\games.yaml` to `dist\config\games.yaml` so the manifest travels with the binary.
+The finished executable is placed at `dist\LAN Game Installer.exe`. The script also copies `config\games.yaml` to `dist\config\games.yaml` so the manifest travels with the binary.
 
 > **Note:** `build.bat` does not copy `config\filter.yaml`. If you need event-specific game filtering, copy it manually into `dist\config\filter.yaml`.
 
@@ -170,7 +170,7 @@ Set `enabled: false` to show all games, or `sync_from_github: false` to manage t
 2. Copy the `dist\` folder to each LAN machine (or a shared network drive).
 3. Ensure the `Installers\` tree is reachable from the same directory as the executable, **or** point the `base_path` entries in `games.yaml` to a UNC/network path.
 4. *(Optional)* Copy `config\filter.yaml` into `dist\config\` and edit it to show only the games relevant to the event.
-5. Run `Cobra LANs.exe` (the app will request administrator privileges automatically).
+5. Run `LAN Game Installer.exe` (the app will request administrator privileges automatically).
 
 ---
 

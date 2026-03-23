@@ -4,16 +4,16 @@ setlocal
 rem Change to the root directory of the project
 cd /d "%~dp0.."
 
-echo [Cobra LANs] Installing dependencies...
+echo [LAN Game Installer] Installing dependencies...
 pip install -r app\requirements.txt
 
 echo.
-echo [Cobra LANs] Building executable...
+echo [LAN Game Installer] Building executable...
 pyinstaller ^
     --onefile ^
     --noconsole ^
     --uac-admin ^
-    --name "Cobra LANs" ^
+    --name "LAN Game Installer" ^
     --add-data "app/core;core" ^
     --add-data "app/ui;ui" ^
     --collect-submodules app.core ^
@@ -22,10 +22,10 @@ pyinstaller ^
     app/cobra_lans.py
 
 echo.
-if exist "dist\Cobra LANs.exe" (
-    echo [Cobra LANs] Build successful: dist\Cobra LANs.exe
+if exist "dist\LAN Game Installer.exe" (
+    echo [LAN Game Installer] Build successful: dist\LAN Game Installer.exe
 ) else (
-    echo [Cobra LANs] Build FAILED – check output above.
+    echo [LAN Game Installer] Build FAILED – check output above.
     exit /b 1
 )
 

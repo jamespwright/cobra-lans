@@ -1,4 +1,4 @@
-# Core business logic for Cobra LANs (no UI dependencies).
+# Core business logic for LAN Game Installer (no UI dependencies).
 #
 # Provides the base directory constant and config-file locator used by
 # every other core module (data, downloader, installer, settings).

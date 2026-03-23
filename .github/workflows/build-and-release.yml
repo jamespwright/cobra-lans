@@ -1,4 +1,4 @@
-name: Build and Release Cobra LANs
+name: Build and Release LAN Game Installer
 
 permissions:
   contents: write
@@ -35,7 +35,7 @@ jobs:
             --onefile ^
             --noconsole ^
             --uac-admin ^
-            --name "Cobra LANs" ^
+            --name "LAN Game Installer" ^
             --add-data "app/core;core" ^
             --add-data "app/ui;ui" ^
             --collect-submodules app.core ^
@@ -70,7 +70,7 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ github.event.inputs.version }}
-        name: Cobra LANs v${{ github.event.inputs.version }}
+        name: LAN Game Installer v${{ github.event.inputs.version }}
         files: CobraLANs-${{ github.event.inputs.version }}.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

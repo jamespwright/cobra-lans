@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cobra LANs – LAN Party Game Installer (entry point)."""
+"""LAN Game Installer – LAN Party Game Installer (entry point)."""
 
 import ctypes
 import sys

@@ -1,12 +1,12 @@
-# Cobra LANs — User Guide
+# LAN Game Installer — User Guide
 
-A quick-start guide for installing LAN party games using Cobra LANs.
+A quick-start guide for installing LAN party games using LAN Game Installer.
 
 ---
 
-## What is Cobra LANs?
+## What is LAN Game Installer?
 
-Cobra LANs is a one-click game installer for LAN parties. It lets you browse a list of available games, select the ones you want, and install them all at once to a directory of your choice. Each game's installer is verified for integrity before it runs, so you can be confident the files haven't been corrupted.
+LAN Game Installer is a one-click game installer for LAN parties. It lets you browse a list of available games, select the ones you want, and install them all at once to a directory of your choice. Each game's installer is verified for integrity before it runs, so you can be confident the files haven't been corrupted.
 
 ---
 
@@ -14,13 +14,13 @@ Cobra LANs is a one-click game installer for LAN parties. It lets you browse a l
 
 - **Windows 10 or 11**
 - **Administrator privileges** — the app will prompt you to allow elevated access when it starts (this is required to run the game installers)
-- **Installer files** — the `Installers\` folder containing the game files must be in the same directory as `Cobra LANs.exe` (your LAN organiser will have this set up for you)
+- **Installer files** — the `Installers\` folder containing the game files must be in the same directory as `LAN Game Installer.exe` (your LAN organiser will have this set up for you)
 
 ---
 
 ## Getting Started
 
-1. **Launch** `Cobra LANs.exe`. If Windows asks for administrator permission, click **Yes**.
+1. **Launch** `LAN Game Installer.exe`. If Windows asks for administrator permission, click **Yes**.
 2. The main window shows all available games with their version, integrity status, and disk size.
 
 ---
@@ -83,9 +83,9 @@ Each row in the game list shows:
 
 ## For LAN Organisers
 
-If you are setting up Cobra LANs for an event:
+If you are setting up LAN Game Installer for an event:
 
-1. Place `Cobra LANs.exe` and the `config\` folder together in one directory.
+1. Place `LAN Game Installer.exe` and the `config\` folder together in one directory.
 2. Ensure the `Installers\` folder (containing all game subfolders) is in the same directory, or accessible via a network path configured in `games.yaml`.
 3. *(Optional)* Create or copy `config\filter.yaml` to restrict which games are shown to players. Set `enabled: true` and list only the games for your event.
 4. Distribute the folder to each machine, or host it on a shared network drive.
