@@ -28,11 +28,11 @@ def _elevate() -> None:
     sys.exit(0)
 
 
-from ui.app import CobraLANs
+from ui.app import LANInatall
 
 if __name__ == "__main__":
     if not _is_admin():
         _elevate()
 
-    app = CobraLANs()
+    app = LANInatall()
     app.mainloop()

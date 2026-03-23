@@ -71,7 +71,7 @@ A cyberpunk-styled Windows desktop application for running LAN party game instal
 5. **Launch the app**
 
    ```bat
-   python cobra_lans.py
+   python lan_game_installer.py
    ```
 
 ### Building a standalone executable
@@ -92,7 +92,7 @@ The finished executable is placed at `dist\LAN Game Installer.exe`. The script a
 
 ```
 cobra-lans/
-├── cobra_lans.py            # Entry point
+├── lan_game_installer.py            # Entry point
 ├── build.bat                # PyInstaller build script
 ├── requirements.txt
 ├── app/

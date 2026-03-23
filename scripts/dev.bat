@@ -29,6 +29,6 @@ if errorlevel 1 (
 
 rem Launch the app
 echo [LAN Game Installer] Starting app...
-python cobra_lans.py %*
+python lan_game_installer.py %*
 
 endlocal

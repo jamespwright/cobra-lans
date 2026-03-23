@@ -19,7 +19,7 @@ pyinstaller ^
     --collect-submodules app.core ^
     --collect-submodules app.ui ^
     --collect-all numpy ^
-    app/cobra_lans.py
+    app/lan_game_installer.py
 
 echo.
 if exist "dist\LAN Game Installer.exe" (
@@ -31,5 +31,5 @@ if exist "dist\LAN Game Installer.exe" (
 
 rem Cleanup build artifacts
 rd /s /q build >nul
-del /q "cobra_lans.spec"
+del /q "LAN Game Installer.spec"
 endlocal
