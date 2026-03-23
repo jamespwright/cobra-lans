@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cobra LANs – LAN Party Game Installer (entry point)."""
+"""LAN Game Installer – LAN Party Game Installer (entry point)."""
 
 import ctypes
 import sys
@@ -28,11 +28,11 @@ def _elevate() -> None:
     sys.exit(0)
 
 
-from ui.app import CobraLANs
+from ui.app import LANInatall
 
 if __name__ == "__main__":
     if not _is_admin():
         _elevate()
 
-    app = CobraLANs()
+    app = LANInatall()
     app.mainloop()

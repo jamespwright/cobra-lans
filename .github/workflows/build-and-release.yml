@@ -1,4 +1,4 @@
-name: Build and Release Cobra LANs
+name: Build and Release LAN Game Installer
 
 permissions:
   contents: write
@@ -35,13 +35,13 @@ jobs:
             --onefile ^
             --noconsole ^
             --uac-admin ^
-            --name "Cobra LANs" ^
+            --name "LAN Game Installer" ^
             --add-data "app/core;core" ^
             --add-data "app/ui;ui" ^
             --collect-submodules app.core ^
             --collect-submodules app.ui ^
             --collect-all numpy ^
-            app/cobra_lans.py
+            app/lan_game_installer.py
 
     - name: Verify build output
       run: dir dist
@@ -49,7 +49,7 @@ jobs:
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
-        name: CobraLANs-build
+        name: LANInatall-build
         path: dist/
 
   release:
@@ -60,17 +60,17 @@ jobs:
     - name: Download build artifact
       uses: actions/download-artifact@v4
       with:
-        name: CobraLANs-build
+        name: LANInatall-build
         path: build-output/
 
     - name: Zip build artifact
-      run: cd build-output && zip -r ../CobraLANs-${{ github.event.inputs.version }}.zip .
+      run: cd build-output && zip -r ../LAN-Game-Installer-${{ github.event.inputs.version }}.zip .
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ github.event.inputs.version }}
-        name: Cobra LANs v${{ github.event.inputs.version }}
-        files: CobraLANs-${{ github.event.inputs.version }}.zip
+        name: LAN Game Installer v${{ github.event.inputs.version }}
+        files: LAN-Game-Installer-${{ github.event.inputs.version }}.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

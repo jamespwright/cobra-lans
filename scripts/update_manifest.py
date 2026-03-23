@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Cobra LANs – Games updater
+LAN Game Installer – Games updater
 ===========================
 Scans the ``Installers/`` tree, finds the primary installer (.exe or .msi)
 for each game, then **fully regenerates**:
@@ -254,7 +254,7 @@ def write_yaml(games: list[dict]) -> None:
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("Cobra LANs – Games Updater")
+    print("LAN Game Installer – Games Updater")
     print("=" * 50)
     games = scan_installers()
     if games:

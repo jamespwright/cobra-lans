@@ -230,7 +230,7 @@ class SettingsPanel(tk.Frame):
         style = ttk.Style()
         style.theme_use("clam")
         style.configure(
-            "Cobra.TCombobox",
+            "langames.TCombobox",
             fieldbackground=C["entry_bg"], background=C["surface2"],
             foreground=C["text"], arrowcolor=C["cyan"],
             bordercolor=C["border"], lightcolor=C["border"],
@@ -238,7 +238,7 @@ class SettingsPanel(tk.Frame):
             selectforeground=C["text"], padding=(4, 4), relief="flat",
         )
         style.map(
-            "Cobra.TCombobox",
+            "langames.TCombobox",
             fieldbackground=[("readonly", C["entry_bg"]), ("disabled", C["entry_bg"])],
             foreground=[("readonly", C["text"]), ("disabled", C["text_dim"])],
             background=[("readonly", C["surface2"]), ("active", C["surface2"])],
@@ -266,7 +266,7 @@ class SettingsPanel(tk.Frame):
                  bg=C["surface2"], fg=C["text_dim"], anchor="w").pack(fill="x")
         combo = ttk.Combobox(
             frame, textvariable=var, font=("Courier New", 14),
-            values=[""] + values, state="readonly", style="Cobra.TCombobox",
+            values=[""] + values, state="readonly", style="langames.TCombobox",
         )
         combo.pack(fill="x", pady=(4, 0), ipady=5)
         return combo

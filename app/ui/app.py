@@ -20,11 +20,11 @@ from core.installer import run_installs
 from core.downloader import download_game
 
 
-class CobraLANs(tk.Tk):
+class LANInatall(tk.Tk):
 
     def __init__(self):
         super().__init__()
-        self.title("Cobra LANs")
+        self.title("LAN Game Installer")
         self.configure(bg=C["bg"])
         self.state('zoomed')
 
@@ -82,11 +82,11 @@ class CobraLANs(tk.Tk):
 
         tk.Label(inner, text="//", font=FONT_HEAD,
                  bg=C["header"], fg=C["magenta"]).pack(side="left", padx=(0, 8))
-        tk.Label(inner, text="COBRA", font=FONT_HEAD,
+        tk.Label(inner, text="LAN", font=FONT_HEAD,
                  bg=C["header"], fg=C["cyan"]).pack(side="left")
-        tk.Label(inner, text=" LANs", font=FONT_HEAD,
+        tk.Label(inner, text=" GAME", font=FONT_HEAD,
                  bg=C["header"], fg=C["magenta"]).pack(side="left")
-        tk.Label(inner, text=" :: GAME INSTALLER",
+        tk.Label(inner, text=" :: INSTALLER",
                  font=("Courier New", 25), bg=C["header"], fg=C["text_dim"],
                  ).pack(side="left", padx=(10, 0), anchor="s", pady=(0, 6))
 
