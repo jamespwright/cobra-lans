@@ -33,6 +33,6 @@ FONT_BOLD   = ("Courier New", 20, "bold")
 FONT_HEAD   = ("Courier New", 30, "bold")
 FONT_SM     = ("Courier New", 15, "bold")
 FONT_XS     = ("Courier New", 12)
-FONT_STATUS = ("Courier New", 13)
+FONT_STATUS = ("Courier New", 20)
 
 SETTINGS_PANEL_W = 380

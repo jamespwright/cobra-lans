@@ -18,7 +18,7 @@ class StatusBar(tk.Frame):
         self._label = tk.Label(
             self, text="", font=FONT_STATUS,
             bg=C["surface2"], fg=C["text_dim"],
-            anchor="w", padx=14, pady=5,
+            anchor="w", padx=14, pady=8,
         )
         self._label.pack(side="left", fill="x")
         self._base_text = ""

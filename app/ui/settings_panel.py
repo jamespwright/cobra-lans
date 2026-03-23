@@ -37,6 +37,9 @@ class SettingsPanel(tk.Frame):
         content = tk.Frame(self, bg=C["surface2"], padx=18, pady=14)
         content.pack(side="left", fill="both", expand=True)
 
+        # Spacer to align header row with the hamburger icon in the main header
+        tk.Frame(content, bg=C["surface2"], height=17).pack(fill="x")
+
         # Header row
         hdr = tk.Frame(content, bg=C["surface2"])
         hdr.pack(fill="x", pady=(0, 6))
@@ -44,8 +47,8 @@ class SettingsPanel(tk.Frame):
                  font=("Courier New", 18, "bold"),
                  bg=C["surface2"], fg=C["cyan"]).pack(side="left")
         close_lbl = tk.Label(
-            hdr, text="\u2715", font=("Courier New", 18, "bold"),
-            bg=C["surface2"], fg=C["magenta"], cursor="hand2",
+            hdr, text="\u2715", font=("Courier New", 26, "bold"),
+            bg=C["surface2"], fg=C["cyan"], cursor="hand2", padx=4,
         )
         close_lbl.pack(side="right")
         close_lbl.bind("<Button-1>", lambda _: self.toggle())
