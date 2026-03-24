@@ -1,66 +1,42 @@
 # Scrollable game-list panel.
 #
 # Displays all games that match the current install mode (game / server)
-# as selectable rows with a checkbox, name, status, and disk-size column.
+# as selectable rows with a checkbox, name, and selection highlight.
 # Owns no business logic – just presentation and selection state.
 
-import threading
 import tkinter as tk
 
 from .theme import C, FONT, FONT_BOLD
 from .widgets import neon_line
-from core.data import folder_size_str, get_installer_folder
 
 
 class GameList(tk.Frame):
     """Scrollable, selectable game list with column headers."""
 
-    def __init__(self, parent: tk.Widget):
-        super().__init__(parent, bg=C["border_hi"], padx=1, pady=1)
+    def __init__(self, parent: tk.Widget, on_select=None):
+        super().__init__(parent, bg=C["surface"])
 
         self.check_vars: list[tk.BooleanVar] = []
-        self.status_vars: list[tk.StringVar] = []
-        self.size_vars: list[tk.StringVar] = []
         self.visible_games: list[dict] = []
         self._stripe_widgets: list[tk.Frame] = []
+        self._row_frames: list[tuple[tk.Frame, str]] = []
         self._check_all_var = tk.BooleanVar(value=False)
+        self._on_select = on_select
+        self._selected_idx = -1
 
         container = tk.Frame(self, bg=C["surface"])
         container.pack(fill="both", expand=True)
 
-        # Section header
-        hdr_bar = tk.Frame(container, bg=C["surface2"])
-        hdr_bar.pack(fill="x")
-        tk.Label(hdr_bar, text="  \u25b8 SELECT GAMES", font=FONT_BOLD,
-                 bg=C["surface2"], fg=C["cyan"], pady=8).pack(side="left")
-        neon_line(container, C["cyan"])
-
-        # Column sub-header
-        col_row = tk.Frame(container, bg=C["surface"], pady=4)
-        col_row.pack(fill="x")
-        tk.Frame(col_row, bg=C["surface"], width=4).pack(side="left", fill="y")
-        tk.Checkbutton(
-            col_row, variable=self._check_all_var, command=self._toggle_all,
-            font=FONT_BOLD, bg=C["surface"], fg=C["magenta"],
-            selectcolor=C["cb_select"], activebackground=C["surface"],
-            activeforeground=C["magenta"], bd=0, relief="flat",
-        ).pack(side="left", padx=(6, 0))
-        tk.Label(col_row, text="", font=FONT, bg=C["surface"], width=3).pack(side="left")
-        tk.Label(col_row, text="GAME TITLE", font=FONT_BOLD,
-                 bg=C["surface"], fg=C["text_dim"]).pack(side="left")
-        tk.Label(col_row, text="DISK SIZE", font=FONT_BOLD,
-                 bg=C["surface"], fg=C["text_dim"], width=10, anchor="e"
-                 ).pack(side="right", padx=(0, 12))
-        tk.Label(col_row, text="STATUS", font=FONT_BOLD,
-                 bg=C["surface"], fg=C["text_dim"], width=30, anchor="w"
-                 ).pack(side="right", padx=(0, 16))
-        neon_line(container, C["border_hi"])
-
-        # Scrollable canvas
+        # Scrollable canvas with retro-styled scrollbar
         scroll_host = tk.Frame(container, bg=C["surface"])
         scroll_host.pack(fill="both", expand=True)
         canvas = tk.Canvas(scroll_host, bg=C["surface"], highlightthickness=0, bd=0)
-        scrollbar = tk.Scrollbar(scroll_host, orient="vertical", command=canvas.yview)
+        scrollbar = tk.Scrollbar(
+            scroll_host, orient="vertical", command=canvas.yview,
+            bg=C["surface2"], troughcolor=C["bg"],
+            activebackground=C["cyan"], highlightbackground=C["border"],
+            bd=0, width=14, relief="flat",
+        )
         canvas.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
@@ -81,31 +57,39 @@ class GameList(tk.Frame):
             child.destroy()
         self.check_vars.clear()
         self._stripe_widgets.clear()
-        self.status_vars.clear()
-        self.size_vars.clear()
+        self._row_frames.clear()
         self._check_all_var.set(False)
+        self._selected_idx = -1
 
         self.visible_games = [g for g in games if g.get("type", "game") == mode]
         for idx, game in enumerate(self.visible_games):
             self._add_row(idx, game)
+        if self.visible_games:
+            self.select_game(0)
 
     def selected_games(self) -> list[dict]:
         """Return the list of currently checked games."""
         return [self.visible_games[i] for i, v in enumerate(self.check_vars) if v.get()]
 
-    def update_status(self, game_name: str, msg: str) -> None:
-        """Set the status text for the row matching *game_name*."""
-        for i, game in enumerate(self.visible_games):
-            if game["name"] == game_name and i < len(self.status_vars):
-                self.status_vars[i].set(msg)
-                break
+    def selected_game(self) -> dict | None:
+        """Return the currently highlighted game, or None."""
+        if 0 <= self._selected_idx < len(self.visible_games):
+            return self.visible_games[self._selected_idx]
+        return None
 
-    def refresh_size(self, game_name: str) -> None:
-        """Recalculate the disk-size label for *game_name*."""
-        for i, game in enumerate(self.visible_games):
-            if game["name"] == game_name and i < len(self.size_vars):
-                self.size_vars[i].set(folder_size_str(get_installer_folder(game)))
-                break
+    def select_game(self, idx: int) -> None:
+        """Highlight row *idx* and fire the on_select callback."""
+        if idx == self._selected_idx:
+            return
+        if 0 <= self._selected_idx < len(self._row_frames):
+            old_frame, old_bg = self._row_frames[self._selected_idx]
+            self._set_row_bg(old_frame, old_bg)
+        self._selected_idx = idx
+        if 0 <= idx < len(self._row_frames):
+            new_frame, _ = self._row_frames[idx]
+            self._set_row_bg(new_frame, C["row_hover"])
+        if self._on_select and 0 <= idx < len(self.visible_games):
+            self._on_select(self.visible_games[idx])
 
     # ── Private ───────────────────────────────────────────────────────────────
 
@@ -119,6 +103,15 @@ class GameList(tk.Frame):
         self._check_all_var.set(
             all(v.get() for v in self.check_vars) if self.check_vars else False)
 
+    @staticmethod
+    def _set_row_bg(frame: tk.Frame, bg: str) -> None:
+        frame.configure(bg=bg)
+        for child in frame.winfo_children():
+            try:
+                child.configure(bg=bg)
+            except tk.TclError:
+                pass
+
     def _add_row(self, idx: int, game: dict) -> None:
         row_bg = C["row_even"] if idx % 2 == 0 else C["row_odd"]
 
@@ -131,17 +124,19 @@ class GameList(tk.Frame):
         var = tk.BooleanVar(value=False)
         self.check_vars.append(var)
         self._stripe_widgets.append(stripe)
+        self._row_frames.append((frame, row_bg))
 
         def _update_stripe(v=var, s=stripe):
             s.configure(bg=C["cyan"] if v.get() else C["border"])
             self._sync_select_all()
 
-        tk.Checkbutton(
+        cb = tk.Checkbutton(
             frame, variable=var, command=_update_stripe,
             bg=row_bg, fg=C["cyan"],
             selectcolor=C["cb_select"], activebackground=row_bg,
             activeforeground=C["cyan"], bd=0, relief="flat",
-        ).pack(side="left", padx=(6, 0))
+        )
+        cb.pack(side="left", padx=(6, 0))
 
         tk.Label(frame, text=f"{idx + 1:02d}", font=FONT,
                  bg=row_bg, fg=C["text_dim"], width=3, anchor="e").pack(side="left")
@@ -150,48 +145,23 @@ class GameList(tk.Frame):
                             fg=C["text"], bg=row_bg, anchor="w")
         name_lbl.pack(side="left", padx=(8, 0), fill="x", expand=True)
 
-        size_var = tk.StringVar(value="---")
-        self.size_vars.append(size_var)
-        size_lbl = tk.Label(frame, textvariable=size_var, font=FONT,
-                            fg=C["accent_dim"], bg=row_bg, width=10, anchor="e")
-        size_lbl.pack(side="right", padx=(0, 12))
-
-        status_var = tk.StringVar(value="")
-        self.status_vars.append(status_var)
-        status_lbl = tk.Label(frame, textvariable=status_var, font=FONT,
-                              fg=C["accent_dim"], bg=row_bg, width=30, anchor="w")
-        status_lbl.pack(side="right")
-
-        # Fetch folder size in background
-        threading.Thread(
-            target=lambda v=size_var, g=game: v.set(
-                folder_size_str(get_installer_folder(g))),
-            daemon=True,
-        ).start()
-
         # Row interaction helpers
-        def _set_bg(widget: tk.Widget, bg: str):
-            widget.configure(bg=bg)
-            for child in widget.winfo_children():
-                try:
-                    child.configure(bg=bg)
-                except tk.TclError:
-                    pass
+        def _select(_e, i=idx):
+            self.select_game(i)
 
-        def _toggle(_e, v=var, s=stripe):
-            v.set(not v.get())
-            s.configure(bg=C["cyan"] if v.get() else C["border"])
-            self._sync_select_all()
-
-        def _enter(_e, r=frame, s=stripe, v=var):
-            _set_bg(r, C["row_hover"])
+        def _enter(_e, r=frame, s=stripe, v=var, i=idx):
+            if self._selected_idx != i:
+                self._set_row_bg(r, C["row_hover"])
             s.configure(bg=C["cyan"] if v.get() else C["magenta"])
 
-        def _leave(_e, r=frame, s=stripe, v=var, bg=row_bg):
-            _set_bg(r, bg)
+        def _leave(_e, r=frame, s=stripe, v=var, bg=row_bg, i=idx):
+            sel_bg = C["row_hover"] if self._selected_idx == i else bg
+            self._set_row_bg(r, sel_bg)
             s.configure(bg=C["cyan"] if v.get() else C["border"])
 
-        for w in (frame, name_lbl, size_lbl, status_lbl):
-            w.bind("<Button-1>", _toggle)
+        for w in (frame, name_lbl):
+            w.bind("<Button-1>", _select)
             w.bind("<Enter>", _enter)
             w.bind("<Leave>", _leave)
+        cb.bind("<Enter>", _enter)
+        cb.bind("<Leave>", _leave)

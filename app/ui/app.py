@@ -12,6 +12,7 @@ from tkinter import filedialog, messagebox, simpledialog
 from .theme import C, FONT, FONT_BOLD, FONT_HEAD
 from .widgets import CyberButton, neon_box, neon_line
 from .game_list import GameList
+from .game_details import GameDetails
 from .settings_panel import SettingsPanel
 from .status_bar import StatusBar
 from core import BASE_DIR, settings
@@ -47,9 +48,50 @@ class LANInatall(tk.Tk):
     def _build_ui(self) -> None:
         self._build_header()
 
-        self._game_list = GameList(self)
-        self._game_list.pack(fill="both", expand=True, padx=22, pady=(14, 0))
+        # Two-panel game browser
+        browser = tk.Frame(self, bg=C["border_hi"], padx=1, pady=1)
+        browser.pack(fill="both", expand=True, padx=22, pady=(14, 0))
+        browser_inner = tk.Frame(browser, bg=C["surface"])
+        browser_inner.pack(fill="both", expand=True)
+
+        hdr_bar = tk.Frame(browser_inner, bg=C["surface2"])
+        hdr_bar.pack(fill="x")
+        self._check_all_cb = tk.Checkbutton(
+            hdr_bar, font=FONT_BOLD, bg=C["surface2"], fg=C["magenta"],
+            selectcolor=C["cb_select"], activebackground=C["surface2"],
+            activeforeground=C["magenta"], bd=0, relief="flat",
+        )
+        self._check_all_cb.pack(side="left", padx=(8, 0))
+        tk.Label(hdr_bar, text="\u25b8 SELECT GAMES", font=FONT_BOLD,
+                 bg=C["surface2"], fg=C["cyan"], pady=8).pack(side="left")
+        neon_line(browser_inner, C["cyan"])
+
+        panels = tk.Frame(browser_inner, bg=C["surface"])
+        panels.pack(fill="both", expand=True)
+        panels.grid_columnconfigure(0, weight=1, uniform="panel")
+        panels.grid_columnconfigure(1, weight=0, minsize=6)
+        panels.grid_columnconfigure(2, weight=1, uniform="panel")
+        panels.grid_rowconfigure(0, weight=1)
+
+        self._game_list = GameList(panels, on_select=self._on_game_selected)
+        self._game_list.grid(row=0, column=0, sticky="nsew")
+
+        # Vertical separator between panels
+        sep = tk.Frame(panels, bg=C["surface"], width=6)
+        sep.grid(row=0, column=1, sticky="ns")
+        tk.Frame(sep, bg=C["cyan"], width=1).pack(side="left", fill="y", padx=(1, 0))
+        tk.Frame(sep, bg=C["cyan"], width=1).pack(side="right", fill="y", padx=(0, 1))
+
+        self._game_details = GameDetails(panels)
+        self._game_details.grid(row=0, column=2, sticky="nsew")
+
         self._game_list.populate(self.games, self.install_type.get())
+
+        # Wire header select-all checkbox to the game list
+        self._check_all_cb.configure(
+            variable=self._game_list._check_all_var,
+            command=self._game_list._toggle_all,
+        )
 
         self._build_bottom_bar()
 
@@ -143,6 +185,19 @@ class LANInatall(tk.Tk):
         self._settings_panel.snap_to_edge()
 
     # ── Settings save callback ─────────────────────────────────────────────────
+
+    def _on_game_selected(self, game: dict) -> None:
+        """Called when a game row is clicked in the list."""
+        import threading
+        from core.data import folder_size_str, get_installer_folder
+
+        self._game_details.show_game(game)
+
+        def _load_size(g=game):
+            size = folder_size_str(get_installer_folder(g))
+            self.after(0, self._game_details.update_size, size)
+
+        threading.Thread(target=_load_size, daemon=True).start()
 
     def _on_settings_saved(self, url_changed: bool) -> None:
         """Called by the settings panel after a successful save."""
@@ -245,7 +300,7 @@ class LANInatall(tk.Tk):
     def _run_in_thread(self, selected, install_dir, player, server_ip_parts,
                        download_url=None, download_only=False) -> None:
         def _status_cb(game_name: str, msg: str) -> None:
-            self.after(0, self._game_list.update_status, game_name, msg)
+            self.after(0, self._status_bar.set, f"{game_name}: {msg}")
 
         errors = run_installs(
             selected, install_dir, player, server_ip_parts,
@@ -253,8 +308,10 @@ class LANInatall(tk.Tk):
             download_only=download_only,
         )
 
-        for game in selected:
-            self.after(0, self._game_list.refresh_size, game["name"])
+        # Refresh details panel for the currently viewed game
+        current = self._game_list.selected_game()
+        if current:
+            self.after(0, self._on_game_selected, current)
 
         self.after(0, self._set_busy, False)
 
