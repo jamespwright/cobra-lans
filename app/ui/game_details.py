@@ -51,7 +51,7 @@ class GameDetails(tk.Frame):
         meta_frame.pack(fill="x", padx=14, pady=(0, 14))
 
         self._meta_vars: dict[str, tk.StringVar] = {}
-        for label in ("Released On", "Developers", "Publishers", "Disk Size"):
+        for label in ("Released On", "Genre", "Developers", "Publishers", "Players", "Disk Size"):
             row = tk.Frame(meta_frame, bg=C["surface"])
             row.pack(fill="x", pady=2)
             tk.Label(
@@ -71,13 +71,12 @@ class GameDetails(tk.Frame):
         """Update the panel with details for *game*."""
         name = game.get("name", "Unknown")
         self._title_var.set(f"// {name.upper()}")
-        self._desc_var.set(
-            f"Installer type: {game.get('installer_type', 'unknown').upper()}\n"
-            f"Type: {game.get('type', 'game')}"
-        )
-        self._meta_vars["Released On"].set(" --")
-        self._meta_vars["Developers"].set(" --")
-        self._meta_vars["Publishers"].set(" --")
+        self._desc_var.set(game.get("description", "No description available."))
+        self._meta_vars["Released On"].set(f" {game.get('release_date', '--')}")
+        self._meta_vars["Genre"].set(f" {game.get('genre', '--')}")
+        self._meta_vars["Developers"].set(f" {game.get('developer', '--')}")
+        self._meta_vars["Publishers"].set(f" {game.get('publisher', '--')}")
+        self._meta_vars["Players"].set(f" {game.get('player_count', '--')}")
         self._meta_vars["Disk Size"].set(f" {size_str}")
 
     def update_size(self, size_str: str) -> None:
