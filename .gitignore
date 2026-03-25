@@ -9,3 +9,5 @@ usersettings.yaml
 filter.yaml
 games.yaml
 __pycache__
+app\config\images*
+/app/config/images

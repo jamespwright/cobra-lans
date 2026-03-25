@@ -1,13 +1,22 @@
 # Game details panel – displays information for the currently selected game.
 #
-# Shows a banner placeholder, game title, description, and metadata
+# Shows a banner image, game title, description, and metadata
 # fields.  Content is updated via show_game() when the user clicks
 # a row in the adjacent game list.
 
+import os
 import tkinter as tk
 
+import numpy as np
+from PIL import Image, ImageTk
+
 from .theme import C, FONT, FONT_BOLD, FONT_HEAD, FONT_SM
-from .widgets import neon_line
+
+_IMAGES_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "config", "images")
+)
+_BANNER_H = 430
+_FADE_RATIO = 0.45  # fraction of banner height that fades to bg
 
 
 class GameDetails(tk.Frame):
@@ -16,21 +25,22 @@ class GameDetails(tk.Frame):
     def __init__(self, parent: tk.Widget):
         super().__init__(parent, bg=C["surface"])
 
-        # Banner placeholder
-        self._banner = tk.Frame(
-            self, bg=C["surface2"], height=200,
-            highlightbackground=C["cyan"], highlightthickness=1,
+        # Banner canvas – edge-to-edge, no padding, no border
+        self._banner_canvas = tk.Canvas(
+            self, height=_BANNER_H, bg=C["surface"],
+            highlightthickness=0, bd=0,
         )
-        self._banner.pack(fill="x", padx=14, pady=(10, 10))
-        self._banner.pack_propagate(False)
+        self._banner_canvas.pack(fill="x")
+        self._banner_canvas.bind("<Configure>", self._on_banner_resize)
 
-        neon_line(self, C["border_hi"])
+        self._current_game_name: str | None = None
+        self._photo: ImageTk.PhotoImage | None = None  # prevent GC
 
         # Game title
         self._title_var = tk.StringVar(value="// GAME TITLE")
         tk.Label(
             self, textvariable=self._title_var, font=FONT_HEAD,
-            bg=C["surface"], fg=C["magenta"], anchor="w",
+            bg=C["surface"], fg=C["magenta"], anchor="w", width=1,
         ).pack(fill="x", padx=14, pady=(14, 4))
 
         # Description header + text
@@ -40,11 +50,13 @@ class GameDetails(tk.Frame):
         ).pack(fill="x", padx=14, pady=(10, 2))
 
         self._desc_var = tk.StringVar(value="No game selected.")
-        tk.Label(
+        self._desc_label = tk.Label(
             self, textvariable=self._desc_var, font=FONT_SM,
             bg=C["surface"], fg=C["text"], anchor="nw",
-            wraplength=500, justify="left",
-        ).pack(fill="x", padx=14, pady=(0, 14))
+            wraplength=300, justify="left", width=1,
+        )
+        self._desc_label.pack(fill="x", padx=14, pady=(0, 14))
+        self.bind("<Configure>", self._on_frame_resize)
 
         # Metadata fields
         meta_frame = tk.Frame(self, bg=C["surface"])
@@ -65,6 +77,60 @@ class GameDetails(tk.Frame):
                 bg=C["surface"], fg=C["text"], anchor="w",
             ).pack(side="left", padx=(4, 0))
 
+    # ── Resize helpers ────────────────────────────────────────────────────────
+
+    def _on_frame_resize(self, event: tk.Event) -> None:
+        wrap = max(event.width - 28, 100)  # account for padx=14 on each side
+        self._desc_label.configure(wraplength=wrap)
+
+    def _on_banner_resize(self, event: tk.Event) -> None:
+        if self._current_game_name:
+            self._render_banner(self._current_game_name, event.width)
+
+    def _render_banner(self, name: str, width: int | None = None) -> None:
+        if width is None or width <= 1:
+            width = self._banner_canvas.winfo_width()
+        if width <= 1:
+            width = 500  # pre-map fallback
+
+        img_path = os.path.join(_IMAGES_DIR, f"{name}.png")
+        if not os.path.isfile(img_path):
+            self._banner_canvas.delete("all")
+            self._photo = None
+            return
+
+        h = _BANNER_H
+        img = Image.open(img_path).convert("RGBA")
+
+        # Scale to cover (maintain aspect ratio, crop to fill canvas)
+        iw, ih = img.size
+        scale = max(width / iw, h / ih)
+        scaled_w = int(iw * scale)
+        scaled_h = int(ih * scale)
+        img = img.resize((scaled_w, scaled_h), Image.LANCZOS)
+        # Centre-crop to the canvas dimensions
+        left = (scaled_w - width) // 2
+        top = (scaled_h - h) // 2
+        img = img.crop((left, top, left + width, top + h))
+
+        # Bottom fade: blend alpha channel toward 0 over the fade region
+        arr = np.array(img, dtype=np.float32)
+        fade_start = int(h * (1.0 - _FADE_RATIO))
+        bg_hex = C["surface"].lstrip("#")
+        bg_r, bg_g, bg_b = (int(bg_hex[i:i + 2], 16) for i in (0, 2, 4))
+        fade_rows = max(h - fade_start - 1, 1)
+        for y in range(fade_start, h):
+            t = (y - fade_start) / fade_rows  # 0 → 1
+            arr[y, :, 3] = arr[y, :, 3] * (1.0 - t)
+
+        faded = Image.fromarray(arr.astype(np.uint8), "RGBA")
+        bg_layer = Image.new("RGBA", (width, h), (bg_r, bg_g, bg_b, 255))
+        bg_layer.paste(faded, (0, 0), faded)
+
+        self._photo = ImageTk.PhotoImage(bg_layer.convert("RGB"))
+        self._banner_canvas.delete("all")
+        self._banner_canvas.create_image(0, 0, anchor="nw", image=self._photo)
+
     # ── Public API ────────────────────────────────────────────────────────────
 
     def show_game(self, game: dict, size_str: str = "---") -> None:
@@ -78,6 +144,9 @@ class GameDetails(tk.Frame):
         self._meta_vars["Publishers"].set(f" {game.get('publisher', '--')}")
         self._meta_vars["Players"].set(f" {game.get('player_count', '--')}")
         self._meta_vars["Disk Size"].set(f" {size_str}")
+
+        self._current_game_name = name
+        self._render_banner(name)
 
     def update_size(self, size_str: str) -> None:
         """Update just the disk size field."""

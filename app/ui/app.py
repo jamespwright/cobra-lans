@@ -68,22 +68,24 @@ class LANInatall(tk.Tk):
 
         panels = tk.Frame(browser_inner, bg=C["surface"])
         panels.pack(fill="both", expand=True)
-        panels.grid_columnconfigure(0, weight=1, uniform="panel")
-        panels.grid_columnconfigure(1, weight=0, minsize=6)
-        panels.grid_columnconfigure(2, weight=1, uniform="panel")
-        panels.grid_rowconfigure(0, weight=1)
+
+        _SEP_PX = 6          # separator width in pixels
+        _LIST_W = 0.60       # ← change this (0.0–1.0) to adjust the split
+        _SEP_W  = _SEP_PX / panels.winfo_reqwidth() if panels.winfo_reqwidth() else 0
+        _DET_X  = _LIST_W
+        _DET_W  = 1.0 - _LIST_W
 
         self._game_list = GameList(panels, on_select=self._on_game_selected)
-        self._game_list.grid(row=0, column=0, sticky="nsew")
+        self._game_list.place(relx=0, rely=0, relwidth=_LIST_W, relheight=1)
 
         # Vertical separator between panels
-        sep = tk.Frame(panels, bg=C["surface"], width=6)
-        sep.grid(row=0, column=1, sticky="ns")
+        sep = tk.Frame(panels, bg=C["surface"], width=_SEP_PX)
+        sep.place(relx=_LIST_W, rely=0, width=_SEP_PX, relheight=1)
         tk.Frame(sep, bg=C["cyan"], width=1).pack(side="left", fill="y", padx=(1, 0))
         tk.Frame(sep, bg=C["cyan"], width=1).pack(side="right", fill="y", padx=(0, 1))
 
         self._game_details = GameDetails(panels)
-        self._game_details.grid(row=0, column=2, sticky="nsew")
+        self._game_details.place(relx=_DET_X, rely=0, relwidth=_DET_W, relheight=1)
 
         self._game_list.populate(self.games, self.install_type.get())
 
