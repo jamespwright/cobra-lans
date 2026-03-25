@@ -70,7 +70,7 @@ class LANInatall(tk.Tk):
         panels.pack(fill="both", expand=True)
 
         _SEP_PX = 6          # separator width in pixels
-        _LIST_W = 0.60       # ← change this (0.0–1.0) to adjust the split
+        _LIST_W = 0.50       # ← change this (0.0–1.0) to adjust the split
         _SEP_W  = _SEP_PX / panels.winfo_reqwidth() if panels.winfo_reqwidth() else 0
         _DET_X  = _LIST_W
         _DET_W  = 1.0 - _LIST_W

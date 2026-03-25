@@ -15,8 +15,8 @@ from .theme import C, FONT, FONT_BOLD, FONT_HEAD, FONT_SM
 _IMAGES_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "config", "images")
 )
-_BANNER_H = 430
-_FADE_RATIO = 0.45  # fraction of banner height that fades to bg
+_BANNER_H = 400
+_FADE_RATIO = 0.15  # fraction of banner height that fades to bg
 
 
 class GameDetails(tk.Frame):
@@ -99,29 +99,43 @@ class GameDetails(tk.Frame):
             self._photo = None
             return
 
-        h = _BANNER_H
         img = Image.open(img_path).convert("RGBA")
-
-        # Scale to cover (maintain aspect ratio, crop to fill canvas)
         iw, ih = img.size
-        scale = max(width / iw, h / ih)
-        scaled_w = int(iw * scale)
-        scaled_h = int(ih * scale)
-        img = img.resize((scaled_w, scaled_h), Image.LANCZOS)
-        # Centre-crop to the canvas dimensions
-        left = (scaled_w - width) // 2
-        top = (scaled_h - h) // 2
-        img = img.crop((left, top, left + width, top + h))
 
-        # Bottom fade: blend alpha channel toward 0 over the fade region
-        arr = np.array(img, dtype=np.float32)
-        fade_start = int(h * (1.0 - _FADE_RATIO))
+        # Scale to fit height (no vertical crop or resize beyond natural size)
+        scale = _BANNER_H / ih
+        scaled_w = int(iw * scale)
+        img = img.resize((scaled_w, _BANNER_H), Image.LANCZOS)
+        h = _BANNER_H
+
+        # Place image centred horizontally on a transparent canvas
+        canvas_img = Image.new("RGBA", (width, h), (0, 0, 0, 0))
+        x_offset = (width - scaled_w) // 2
+        canvas_img.paste(img, (x_offset, 0))
+
+        arr = np.array(canvas_img, dtype=np.float32)
         bg_hex = C["surface"].lstrip("#")
         bg_r, bg_g, bg_b = (int(bg_hex[i:i + 2], 16) for i in (0, 2, 4))
+
+        # Bottom fade
+        fade_start = int(h * (1.0 - _FADE_RATIO))
         fade_rows = max(h - fade_start - 1, 1)
         for y in range(fade_start, h):
-            t = (y - fade_start) / fade_rows  # 0 → 1
-            arr[y, :, 3] = arr[y, :, 3] * (1.0 - t)
+            t = (y - fade_start) / fade_rows
+            arr[y, :, 3] *= (1.0 - t)
+
+        # Left fade
+        fade_w = max(int(scaled_w * _FADE_RATIO), 1)
+        left_end = x_offset + fade_w
+        for x in range(min(left_end, width)):
+            t = 1.0 - max(x - x_offset, 0) / fade_w
+            arr[:, x, 3] *= (1.0 - t)
+
+        # Right fade (mirror)
+        right_start = x_offset + scaled_w - fade_w
+        for x in range(max(right_start, 0), width):
+            t = max(x - right_start, 0) / fade_w
+            arr[:, x, 3] *= (1.0 - t)
 
         faded = Image.fromarray(arr.astype(np.uint8), "RGBA")
         bg_layer = Image.new("RGBA", (width, h), (bg_r, bg_g, bg_b, 255))
