@@ -38,16 +38,9 @@ class GameDetails(tk.Frame):
         self._current_game_name: str | None = None
         self._photo: ImageTk.PhotoImage | None = None  # prevent GC
 
-        # Game title
-        self._title_var = tk.StringVar(value="// GAME TITLE")
-        tk.Label(
-            self, textvariable=self._title_var, font=FONT_HEAD,
-            bg=C["surface"], fg=C["magenta"], anchor="w", width=1,
-        ).pack(fill="x", padx=14, pady=(14, 4))
-
         # Description header + text
         tk.Label(
-            self, text="// GAME DESCRIPTION", font=FONT_BOLD,
+            self, text="// DESCRIPTION", font=FONT_BOLD,
             bg=C["surface"], fg=C["cyan"], anchor="w",
         ).pack(fill="x", padx=14, pady=(10, 2))
 
@@ -157,7 +150,6 @@ class GameDetails(tk.Frame):
     def show_game(self, game: dict, size_str: str = "---") -> None:
         """Update the panel with details for *game*."""
         name = game.get("name", "Unknown")
-        self._title_var.set(f"// {name.upper()}")
         self._desc_var.set(game.get("description", "No description available."))
         self._meta_vars["Released On"].set(f" {game.get('release_date', '--')}")
         self._meta_vars["Genre"].set(f" {game.get('genre', '--')}")
