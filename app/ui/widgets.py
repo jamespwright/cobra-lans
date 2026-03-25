@@ -27,6 +27,125 @@ def neon_box(parent: tk.Widget, label: str, color: str = C["cyan"]) -> tk.Frame:
     return inner
 
 
+class CyberScrollbar(tk.Canvas):
+    """Custom canvas-based scrollbar with a capped thumb height."""
+
+    def __init__(self, parent: tk.Widget, orient: str = "vertical",
+                 command=None, width: int = 24, thumb_min: int = 40,
+                 thumb_max: int = 120, bg: str = C["surface"],
+                 thumb_color: str = C["border"],
+                 thumb_hover: str = C["accent_dim"],
+                 thumb_press: str = C["cyan"], **kw):
+        super().__init__(parent, width=width, bg=bg,
+                         highlightthickness=0, bd=0, **kw)
+        self._command = command
+        self._thumb_min = thumb_min
+        self._thumb_max = thumb_max
+        self._thumb_color = thumb_color
+        self._thumb_hover = thumb_hover
+        self._thumb_press = thumb_press
+        self._current_color = thumb_color
+        self._lo = 0.0
+        self._hi = 1.0
+        self._drag_start_y: int | None = None
+        self._drag_start_lo = 0.0
+        self._thumb_id: int | None = None
+
+        self.bind("<Configure>", lambda _: self._redraw())
+        self.bind("<Button-1>", self._on_press)
+        self.bind("<B1-Motion>", self._on_drag)
+        self.bind("<ButtonRelease-1>", self._on_release)
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+
+    def set(self, lo: str, hi: str) -> None:
+        """Called by the associated widget to update thumb position."""
+        self._lo, self._hi = float(lo), float(hi)
+        self._redraw()
+
+    def _thumb_coords(self) -> tuple[int, int, int, int]:
+        h = self.winfo_height()
+        w = self.winfo_width()
+        if h < 1:
+            return 0, 0, w, 0
+        visible = self._hi - self._lo
+        raw_h = int(h * visible)
+        thumb_h = max(self._thumb_min, min(self._thumb_max, raw_h))
+        track = h - thumb_h
+        if (1.0 - visible) > 0:
+            top = int(track * self._lo / (1.0 - visible))
+        else:
+            top = 0
+        pad = max(1, (w - max(w - 8, 6)) // 2)
+        return pad, top, w - pad, top + thumb_h
+
+    def _redraw(self) -> None:
+        self.delete("all")
+        if self._hi - self._lo >= 1.0:
+            return
+        x1, y1, x2, y2 = self._thumb_coords()
+        r = min(4, (x2 - x1) // 2)
+        self._thumb_id = self._round_rect(
+            x1, y1, x2, y2, r, fill=self._current_color, outline="")
+
+    def _round_rect(self, x1: int, y1: int, x2: int, y2: int,
+                    r: int, **kw) -> int:
+        points = [
+            x1+r, y1, x2-r, y1, x2, y1, x2, y1+r,
+            x2, y2-r, x2, y2, x2-r, y2, x1+r, y2,
+            x1, y2, x1, y2-r, x1, y1+r, x1, y1,
+        ]
+        return self.create_polygon(points, smooth=True, **kw)
+
+    def _on_press(self, event: tk.Event) -> None:
+        x1, y1, x2, y2 = self._thumb_coords()
+        if y1 <= event.y <= y2:
+            self._drag_start_y = event.y
+            self._drag_start_lo = self._lo
+            self._current_color = self._thumb_press
+            self._redraw()
+        else:
+            h = self.winfo_height()
+            frac = event.y / h
+            visible = self._hi - self._lo
+            new_lo = max(0.0, min(1.0 - visible, frac - visible / 2))
+            if self._command:
+                self._command("moveto", str(new_lo))
+
+    def _on_drag(self, event: tk.Event) -> None:
+        if self._drag_start_y is None:
+            return
+        h = self.winfo_height()
+        visible = self._hi - self._lo
+        _, y1, _, y2 = self._thumb_coords()
+        thumb_h = y2 - y1
+        track = h - thumb_h
+        if track <= 0:
+            return
+        dy = event.y - self._drag_start_y
+        delta = dy / track * (1.0 - visible)
+        new_lo = max(0.0, min(1.0 - visible, self._drag_start_lo + delta))
+        if self._command:
+            self._command("moveto", str(new_lo))
+
+    def _on_release(self, _event: tk.Event) -> None:
+        self._drag_start_y = None
+        self._current_color = self._thumb_hover
+        self._redraw()
+
+    def _on_enter(self, _event: tk.Event) -> None:
+        if self._drag_start_y is None:
+            self._current_color = self._thumb_hover
+            self._redraw()
+        self.configure(cursor="hand2")
+
+    def _on_leave(self, _event: tk.Event) -> None:
+        if self._drag_start_y is None:
+            self._current_color = self._thumb_color
+            self._redraw()
+        self.configure(cursor="")
+
+
 class CyberButton(tk.Button):
     """Styled button that brightens on hover."""
 

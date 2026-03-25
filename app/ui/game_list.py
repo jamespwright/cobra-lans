@@ -7,7 +7,7 @@
 import tkinter as tk
 
 from .theme import C, FONT, FONT_BOLD
-from .widgets import neon_line
+from .widgets import CyberScrollbar, neon_line
 
 
 class GameList(tk.Frame):
@@ -31,11 +31,11 @@ class GameList(tk.Frame):
         scroll_host = tk.Frame(container, bg=C["surface"])
         scroll_host.pack(fill="both", expand=True)
         canvas = tk.Canvas(scroll_host, bg=C["surface"], highlightthickness=0, bd=0)
-        scrollbar = tk.Scrollbar(
-            scroll_host, orient="vertical", command=canvas.yview,
-            bg=C["surface2"], troughcolor=C["bg"],
-            activebackground=C["cyan"], highlightbackground=C["border"],
-            bd=0, width=14, relief="flat",
+        scrollbar = CyberScrollbar(
+            scroll_host, command=canvas.yview, width=24,
+            thumb_min=40, thumb_max=520,
+            bg=C["surface"], thumb_color=C["border"],
+            thumb_hover=C["accent_dim"], thumb_press=C["cyan"],
         )
         canvas.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side="right", fill="y")
