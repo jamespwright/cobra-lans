@@ -16,6 +16,8 @@ _IMAGES_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "config", "images")
 )
 _BANNER_H = 400
+_BANNER_CROP_BOTTOM = 0    # pixels to crop from the bottom of the banner image (0 = no crop)
+_BANNER_SCALE_X = 1.3     # horizontal width multiplier (1.0 = natural, >1.0 = wider)
 _FADE_RATIO = 0.15  # fraction of banner height that fades to bg
 
 
@@ -102,10 +104,15 @@ class GameDetails(tk.Frame):
         img = Image.open(img_path).convert("RGBA")
         iw, ih = img.size
 
-        # Scale to fit height (no vertical crop or resize beyond natural size)
-        scale = _BANNER_H / ih
-        scaled_w = int(iw * scale)
-        img = img.resize((scaled_w, _BANNER_H), Image.LANCZOS)
+        # Scale uniformly (preserving aspect ratio) so the full target height
+        # (_BANNER_H + _BANNER_CROP_BOTTOM) fits inside the scaled image, then
+        # _BANNER_SCALE_X zooms both axes equally → wider image, no stretch.
+        # The excess vertical pixels (crop + zoom overshoot) are trimmed off the bottom.
+        target_h = int((_BANNER_H + _BANNER_CROP_BOTTOM) * _BANNER_SCALE_X)
+        scale = target_h / ih
+        scaled_w = int(iw * scale)  # aspect ratio preserved
+        img = img.resize((scaled_w, target_h), Image.LANCZOS)
+        img = img.crop((0, 0, scaled_w, _BANNER_H))
         h = _BANNER_H
 
         # Place image centred horizontally on a transparent canvas
