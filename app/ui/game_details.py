@@ -143,28 +143,28 @@ class GameDetails(tk.Frame):
         self._banner = GameBanner(self)
         self._banner.pack(fill="x")
 
-        # Description header + text
+        # Description header + text (hidden until a game is selected)
+        self._desc_frame = tk.Frame(self, bg=C["surface"])
         tk.Label(
-            self, text="// DESCRIPTION", font=FONT_BOLD,
+            self._desc_frame, text="// DESCRIPTION", font=FONT_BOLD,
             bg=C["surface"], fg=C["cyan"], anchor="w",
         ).pack(fill="x", padx=14, pady=(10, 2))
 
-        self._desc_var = tk.StringVar(value="No game selected.")
+        self._desc_var = tk.StringVar()
         self._desc_label = tk.Label(
-            self, textvariable=self._desc_var, font=FONT_SM,
+            self._desc_frame, textvariable=self._desc_var, font=FONT_SM,
             bg=C["surface"], fg=C["text"], anchor="nw",
             wraplength=300, justify="left", width=1,
         )
         self._desc_label.pack(fill="x", padx=14, pady=(0, 14))
         self.bind("<Configure>", self._on_frame_resize)
 
-        # Metadata fields
-        meta_frame = tk.Frame(self, bg=C["surface"])
-        meta_frame.pack(fill="x", padx=14, pady=(0, 14))
+        # Metadata fields (hidden until a game is selected)
+        self._meta_frame = tk.Frame(self, bg=C["surface"])
 
         self._meta_vars: dict[str, tk.StringVar] = {}
         for label in ("Released On", "Genre", "Developers", "Publishers", "Players", "Disk Size"):
-            row = tk.Frame(meta_frame, bg=C["surface"])
+            row = tk.Frame(self._meta_frame, bg=C["surface"])
             row.pack(fill="x", pady=2)
             tk.Label(
                 row, text=f"// {label}:", font=FONT_BOLD,
@@ -194,6 +194,8 @@ class GameDetails(tk.Frame):
         else:
             self._banner.clear()
         self._desc_var.set(game.get("description", "No description available."))
+        self._desc_frame.pack(fill="x")
+        self._meta_frame.pack(fill="x", padx=14, pady=(0, 14))
         self._meta_vars["Released On"].set(f" {game.get('release_date', '--')}")
         self._meta_vars["Genre"].set(f" {game.get('genre', '--')}")
         self._meta_vars["Developers"].set(f" {game.get('developer', '--')}")
