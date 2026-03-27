@@ -30,7 +30,8 @@ class GameList(tk.Frame):
         # Scrollable canvas with retro-styled scrollbar
         scroll_host = tk.Frame(container, bg=C["surface"])
         scroll_host.pack(fill="both", expand=True)
-        canvas = tk.Canvas(scroll_host, bg=C["surface"], highlightthickness=0, bd=0)
+        self._canvas = tk.Canvas(scroll_host, bg=C["surface"], highlightthickness=0, bd=0)
+        canvas = self._canvas
         scrollbar = CyberScrollbar(
             scroll_host, command=canvas.yview, width=24,
             thumb_min=40, thumb_max=520,
@@ -43,9 +44,8 @@ class GameList(tk.Frame):
 
         self._row_container = tk.Frame(canvas, bg=C["surface"])
         win_id = canvas.create_window((0, 0), window=self._row_container, anchor="nw")
-        self._row_container.bind(
-            "<Configure>", lambda _: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.bind("<Configure>", lambda e: canvas.itemconfig(win_id, width=e.width))
+        self._row_container.bind("<Configure>", lambda _: self._sync_scrollregion())
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(win_id, width=e.width) or self._sync_scrollregion())
         canvas.bind_all("<MouseWheel>",
                         lambda e: canvas.yview_scroll(-(e.delta // 120), "units"))
 
@@ -66,6 +66,10 @@ class GameList(tk.Frame):
             self._add_row(idx, game)
         if self.visible_games:
             self.select_game(0)
+
+        self._row_container.update_idletasks()
+        self._sync_scrollregion()
+        self._canvas.yview_moveto(0)
 
     def selected_games(self) -> list[dict]:
         """Return the list of currently checked games."""
@@ -92,6 +96,11 @@ class GameList(tk.Frame):
             self._on_select(self.visible_games[idx])
 
     # ── Private ───────────────────────────────────────────────────────────────
+
+    def _sync_scrollregion(self) -> None:
+        bb = self._canvas.bbox("all") or (0, 0, 0, 0)
+        h = max(bb[3], self._canvas.winfo_height())
+        self._canvas.configure(scrollregion=(bb[0], bb[1], bb[2], h))
 
     def _toggle_all(self) -> None:
         state = self._check_all_var.get()
