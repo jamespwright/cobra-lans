@@ -69,7 +69,7 @@ class LANInatall(tk.Tk):
         panels = tk.Frame(browser_inner, bg=C["surface"])
         panels.pack(fill="both", expand=True)
 
-        _LIST_W = 0.55       # ← change this (0.0–1.0) to adjust the split
+        _LIST_W = 0.60       # ← change this (0.0–1.0) to adjust the split
         _SEP_PX = 2          # separator line thickness
 
         self._game_list = GameList(panels, on_select=self._on_game_selected)

@@ -1,24 +1,136 @@
 # Game details panel – displays information for the currently selected game.
 #
-# Shows a banner image, game title, description, and metadata
-# fields.  Content is updated via show_game() when the user clicks
+# Shows game title, description, and metadata fields.
+# Content is updated via show_game() when the user clicks
 # a row in the adjacent game list.
 
-import os
+import sys
 import tkinter as tk
+from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageTk
+from PIL import Image, ImageFilter, ImageTk
 
+from core import BASE_DIR
 from .theme import C, FONT, FONT_BOLD, FONT_HEAD, FONT_SM
 
-_IMAGES_DIR = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), "..", "config", "images")
-)
-_BANNER_H = 400
-_BANNER_CROP_BOTTOM = 0    # pixels to crop from the bottom of the banner image (0 = no crop)
-_BANNER_SCALE_X = 1.3     # horizontal width multiplier (1.0 = natural, >1.0 = wider)
-_FADE_RATIO = 0.15  # fraction of banner height that fades to bg
+# ── Banner configuration ──────────────────────────────────────────────────────
+BANNER_HEIGHT = 350  # ← Adjust this value to control the banner image height (px)
+
+
+def _find_game_image(name: str) -> Path | None:
+    """Locate the banner image for *name* across config search paths."""
+    candidates = [
+        Path.cwd() / "config" / "images" / f"{name}.png",
+        Path(sys.executable).resolve().parent / "config" / "images" / f"{name}.png",
+        BASE_DIR / "config" / "images" / f"{name}.png",
+    ]
+    for p in candidates:
+        if p.exists():
+            return p
+    return None
+
+
+class GameBanner(tk.Canvas):
+    """Wide banner: crisp centred image with blurred mirrored sides and gradient fades."""
+
+    _BLUR_RADIUS = 10
+    _EDGE_FADE_FRAC = 0.10   # fraction of centre-image width for L/R gradient
+    _BOTTOM_FADE_PX = 80     # pixels for the bottom-to-background gradient
+
+    def __init__(self, parent: tk.Widget, bg_color: str = C["surface"]):
+        super().__init__(parent, bg=bg_color, highlightthickness=0, height=BANNER_HEIGHT)
+        self._bg_rgb = self._hex_to_rgb(bg_color)
+        self._src_pil: Image.Image | None = None
+        self._photo: ImageTk.PhotoImage | None = None
+        self._last_w = 0
+        self._resize_job: str | None = None
+        self.bind("<Configure>", self._on_configure)
+
+    @staticmethod
+    def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+        h = hex_color.lstrip("#")
+        return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+    # ── Public API ─────────────────────────────────────────────────────────
+
+    def set_image(self, path: str | Path) -> None:
+        """Load and display the image at *path*."""
+        try:
+            self._src_pil = Image.open(path).convert("RGBA")
+        except Exception:
+            self.clear()
+            return
+        self._last_w = 0
+        self._render()
+
+    def clear(self) -> None:
+        self._src_pil = None
+        self._photo = None
+        self.delete("all")
+
+    # ── Resize handling ────────────────────────────────────────────────────
+
+    def _on_configure(self, _event: tk.Event | None = None) -> None:
+        if self._resize_job:
+            self.after_cancel(self._resize_job)
+        self._resize_job = self.after(50, self._render)
+
+    # ── Core render ────────────────────────────────────────────────────────
+
+    def _render(self) -> None:
+        self._resize_job = None
+        if self._src_pil is None:
+            self.delete("all")
+            return
+
+        pw = self.winfo_width()
+        if pw < 10:
+            return
+        if pw == self._last_w:
+            return
+        self._last_w = pw
+        h = BANNER_HEIGHT
+        src = self._src_pil
+
+        # ── Centre image – fixed pixel size keyed to BANNER_HEIGHT ────────
+        aspect = src.width / src.height
+        cw = int(h * aspect)
+        center = src.resize((cw, h), Image.LANCZOS).convert("RGBA")
+
+        # ── Blurred mirrored background – scales to full panel width ──────
+        bg = src.resize((max(pw, 1), h), Image.LANCZOS).convert("RGB")
+        bg = bg.transpose(Image.FLIP_LEFT_RIGHT)
+        bg = bg.filter(ImageFilter.GaussianBlur(radius=self._BLUR_RADIUS))
+        composite = bg.convert("RGBA")
+
+        # ── Gradient alpha on left / right edges of centre image ──────────
+        fade_px = max(min(int(cw * self._EDGE_FADE_FRAC), cw // 2), 1)
+        c_arr = np.array(center, dtype=np.float32)
+        alpha = c_arr[:, :, 3]
+        grad = np.linspace(0.0, 1.0, fade_px, dtype=np.float32)
+        alpha[:, :fade_px] *= grad[np.newaxis, :]
+        alpha[:, -fade_px:] *= grad[np.newaxis, ::-1]
+        c_arr[:, :, 3] = alpha
+        center_faded = Image.fromarray(c_arr.astype(np.uint8))
+
+        cx = (pw - cw) // 2
+        composite.paste(center_faded, (cx, 0), center_faded)
+
+        # ── Bottom gradient fade into surface colour ──────────────────────
+        fade_h = min(self._BOTTOM_FADE_PX, h // 2)
+        comp_arr = np.array(composite, dtype=np.float32)
+        t = np.linspace(0.0, 1.0, fade_h, dtype=np.float32).reshape(-1, 1)
+        bg_r, bg_g, bg_b = self._bg_rgb
+        sy = h - fade_h
+        comp_arr[sy:, :, 0] = comp_arr[sy:, :, 0] * (1 - t) + bg_r * t
+        comp_arr[sy:, :, 1] = comp_arr[sy:, :, 1] * (1 - t) + bg_g * t
+        comp_arr[sy:, :, 2] = comp_arr[sy:, :, 2] * (1 - t) + bg_b * t
+
+        final = Image.fromarray(comp_arr.astype(np.uint8)).convert("RGB")
+        self._photo = ImageTk.PhotoImage(final)
+        self.delete("all")
+        self.create_image(pw // 2, h // 2, image=self._photo)
 
 
 class GameDetails(tk.Frame):
@@ -27,16 +139,9 @@ class GameDetails(tk.Frame):
     def __init__(self, parent: tk.Widget):
         super().__init__(parent, bg=C["surface"])
 
-        # Banner canvas – edge-to-edge, no padding, no border
-        self._banner_canvas = tk.Canvas(
-            self, height=_BANNER_H, bg=C["surface"],
-            highlightthickness=0, bd=0,
-        )
-        self._banner_canvas.pack(fill="x")
-        self._banner_canvas.bind("<Configure>", self._on_banner_resize)
-
-        self._current_game_name: str | None = None
-        self._photo: ImageTk.PhotoImage | None = None  # prevent GC
+        # Banner image at top
+        self._banner = GameBanner(self)
+        self._banner.pack(fill="x")
 
         # Description header + text
         tk.Label(
@@ -78,78 +183,16 @@ class GameDetails(tk.Frame):
         wrap = max(event.width - 28, 100)  # account for padx=14 on each side
         self._desc_label.configure(wraplength=wrap)
 
-    def _on_banner_resize(self, event: tk.Event) -> None:
-        if self._current_game_name:
-            self._render_banner(self._current_game_name, event.width)
-
-    def _render_banner(self, name: str, width: int | None = None) -> None:
-        if width is None or width <= 1:
-            width = self._banner_canvas.winfo_width()
-        if width <= 1:
-            width = 500  # pre-map fallback
-
-        img_path = os.path.join(_IMAGES_DIR, f"{name}.png")
-        if not os.path.isfile(img_path):
-            self._banner_canvas.delete("all")
-            self._photo = None
-            return
-
-        img = Image.open(img_path).convert("RGBA")
-        iw, ih = img.size
-
-        # Scale uniformly (preserving aspect ratio) so the full target height
-        # (_BANNER_H + _BANNER_CROP_BOTTOM) fits inside the scaled image, then
-        # _BANNER_SCALE_X zooms both axes equally → wider image, no stretch.
-        # The excess vertical pixels (crop + zoom overshoot) are trimmed off the bottom.
-        target_h = int((_BANNER_H + _BANNER_CROP_BOTTOM) * _BANNER_SCALE_X)
-        scale = target_h / ih
-        scaled_w = int(iw * scale)  # aspect ratio preserved
-        img = img.resize((scaled_w, target_h), Image.LANCZOS)
-        img = img.crop((0, 0, scaled_w, _BANNER_H))
-        h = _BANNER_H
-
-        # Place image centred horizontally on a transparent canvas
-        canvas_img = Image.new("RGBA", (width, h), (0, 0, 0, 0))
-        x_offset = (width - scaled_w) // 2
-        canvas_img.paste(img, (x_offset, 0))
-
-        arr = np.array(canvas_img, dtype=np.float32)
-        bg_hex = C["surface"].lstrip("#")
-        bg_r, bg_g, bg_b = (int(bg_hex[i:i + 2], 16) for i in (0, 2, 4))
-
-        # Bottom fade
-        fade_start = int(h * (1.0 - _FADE_RATIO))
-        fade_rows = max(h - fade_start - 1, 1)
-        for y in range(fade_start, h):
-            t = (y - fade_start) / fade_rows
-            arr[y, :, 3] *= (1.0 - t)
-
-        # Left fade
-        fade_w = max(int(scaled_w * _FADE_RATIO), 1)
-        left_end = x_offset + fade_w
-        for x in range(min(left_end, width)):
-            t = 1.0 - max(x - x_offset, 0) / fade_w
-            arr[:, x, 3] *= (1.0 - t)
-
-        # Right fade (mirror)
-        right_start = x_offset + scaled_w - fade_w
-        for x in range(max(right_start, 0), width):
-            t = max(x - right_start, 0) / fade_w
-            arr[:, x, 3] *= (1.0 - t)
-
-        faded = Image.fromarray(arr.astype(np.uint8), "RGBA")
-        bg_layer = Image.new("RGBA", (width, h), (bg_r, bg_g, bg_b, 255))
-        bg_layer.paste(faded, (0, 0), faded)
-
-        self._photo = ImageTk.PhotoImage(bg_layer.convert("RGB"))
-        self._banner_canvas.delete("all")
-        self._banner_canvas.create_image(0, 0, anchor="nw", image=self._photo)
-
     # ── Public API ────────────────────────────────────────────────────────────
 
     def show_game(self, game: dict, size_str: str = "---") -> None:
         """Update the panel with details for *game*."""
         name = game.get("name", "Unknown")
+        img = _find_game_image(name)
+        if img:
+            self._banner.set_image(img)
+        else:
+            self._banner.clear()
         self._desc_var.set(game.get("description", "No description available."))
         self._meta_vars["Released On"].set(f" {game.get('release_date', '--')}")
         self._meta_vars["Genre"].set(f" {game.get('genre', '--')}")
@@ -157,9 +200,6 @@ class GameDetails(tk.Frame):
         self._meta_vars["Publishers"].set(f" {game.get('publisher', '--')}")
         self._meta_vars["Players"].set(f" {game.get('player_count', '--')}")
         self._meta_vars["Disk Size"].set(f" {size_str}")
-
-        self._current_game_name = name
-        self._render_banner(name)
 
     def update_size(self, size_str: str) -> None:
         """Update just the disk size field."""
